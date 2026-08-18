@@ -1,14 +1,14 @@
-# proof-of-work
+# Proof of Work
 
-A decentralized platform for verifying public works using AI, GPS, timestamps, before/after evidence, and citizen verification.
+AI-powered platform for transparent and verifiable public works.
 
-## Project Modules
+## Tech Stack
 
-- Frontend: React
-- Backend: Spring Boot
-- Database: PostgreSQL
-- AI Service: Python
-- Verification: AI + GPS + Timestamp + Citizen Feedback
+- React
+- Spring Boot
+- PostgreSQL
+- Python
+- AI/ML
 
 ## Team
 
