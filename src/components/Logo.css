@@ -1,0 +1,145 @@
+.pw-logo-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  z-index: 10;
+}
+
+/* =========================
+   BASE LOGO
+========================= */
+
+.pw-logo {
+  display: inline-flex;
+  align-items: center;
+
+  font-size: 1.35rem;
+  font-weight: 900;
+
+  letter-spacing: -0.08em;
+  line-height: 1;
+
+  color: #ffffff;
+  cursor: pointer;
+
+  transition:
+    transform 0.4s ease,
+    filter 0.4s ease;
+}
+
+.pw-logo:hover {
+  transform: scale(1.05);
+  filter: drop-shadow(0 0 10px rgba(184, 245, 42, 0.25));
+}
+
+.logo-p,
+.logo-slash,
+.logo-w {
+  display: inline-block;
+}
+
+/* P */
+
+.logo-p {
+  animation: logoPReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* / */
+
+.logo-slash {
+  color: #b8f52a;
+  margin: 0 2px;
+
+  text-shadow:
+    0 0 8px rgba(184, 245, 42, 0.5),
+    0 0 20px rgba(184, 245, 42, 0.2);
+
+  animation:
+    logoSlashReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+    logoSlashMove 2.5s ease-in-out infinite 1s;
+}
+
+/* W */
+
+.logo-w {
+  animation: logoWReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* =========================
+   INTRO ANIMATION
+========================= */
+
+@keyframes logoPReveal {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes logoSlashReveal {
+  from {
+    opacity: 0;
+    transform: scaleY(0.3) rotate(-20deg);
+  }
+
+  to {
+    opacity: 1;
+    transform: scaleY(1) rotate(0);
+  }
+}
+
+@keyframes logoWReveal {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* SUBTLE CONTINUOUS MOTION */
+
+@keyframes logoSlashMove {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-1px) rotate(-4deg);
+  }
+}
+
+/* =========================
+   NAVBAR VERSION
+========================= */
+
+.nav-logo {
+  font-size: 1.3rem;
+  letter-spacing: -0.07em;
+}
+
+/* =========================
+   FOOTER VERSION
+========================= */
+
+.footer-pw-logo {
+  font-size: 2.2rem;
+}
+
+/* =========================
+   HERO VERSION
+========================= */
+
+.hero-pw-logo {
+  font-size: 4.5rem;
+}
