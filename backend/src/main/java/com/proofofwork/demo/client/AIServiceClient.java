@@ -16,7 +16,6 @@ public class AIServiceClient {
     public AIServiceClient(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }
-
     public String verifyComplete(int workId, String workDescription) {
 
         String url = "http://127.0.0.1:8000/verify-complete";

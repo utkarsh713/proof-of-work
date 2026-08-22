@@ -1,185 +1,120 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { FcGoogle } from "react-icons/fc";
-import { FaFacebookF, FaGithub } from "react-icons/fa";
-
 import "../index.css";
-import Logo from "../components/Logo";
-import heroVideo from "../assets/hero.mp4";
 
-export default function Login() {
-  const navigate = useNavigate();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-
-    // Check fields
-    if (!email || !password) {
-      alert("Please enter your email and password");
-      return;
-    }
-
-    // Save login status
-    localStorage.setItem("isLoggedIn", "true");
-    localStorage.setItem("userEmail", email);
-
-    // Open Dashboard
-    navigate("/dashboard");
-  };
-
+function Login() {
   return (
     <div className="login-page">
+      {/* LEFT SIDE */}
+      <div className="login-visual">
+        <div className="login-overlay" />
 
-      {/* Background Video */}
-      <video
-        className="login-video"
-        autoPlay
-        muted
-        loop
-        playsInline
-      >
-        <source src={heroVideo} type="video/mp4" />
-      </video>
-
-      {/* Dark Overlay */}
-      <div className="login-overlay"></div>
-
-      {/* Blurred Background Content */}
-      <div className="login-bg-content">
-        <div className="login-bg-logo">
-          <Logo />
-        </div>
-
-        <h1>
-          PUBLIC WORK.
-          <br />
-          <span>PUBLIC PROOF.</span>
-        </h1>
-      </div>
-
-      {/* Login Modal */}
-      <div className="login-modal">
-
-        <Link to="/" className="login-close">
-          ×
-        </Link>
-
-        <div className="login-logo">
-          <Logo />
-        </div>
-
-        <h2>Welcome back</h2>
-
-        <p className="login-subtitle">
-          Enter your details to continue to{" "}
-          <span>Proof-of-Work</span>
-        </p>
-
-        {/* IMPORTANT: onSubmit */}
-        <form
-          className="login-form"
-          onSubmit={handleLogin}
-        >
-
-          {/* Email */}
-          <div className="input-group">
-            <label>Email Address</label>
-
-            <input
-              type="email"
-              placeholder="Enter your email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+        <div className="login-brand">
+          <div className="logo">
+            P<span>/</span>W
           </div>
 
-          {/* Password */}
-          <div className="input-group">
-            <label>Password</label>
+          <p className="logo-subtitle">PROOF OF WORK</p>
+        </div>
 
-            <div className="password-input">
+        <div className="login-message">
+          <span className="eyebrow">WELCOME TO</span>
+
+          <h1>
+            PUBLIC <span>WORK.</span>
+            <br />
+            PUBLIC PROOF.
+          </h1>
+
+          <p>
+            Verify public infrastructure through transparent,
+            verifiable and citizen-powered evidence.
+          </p>
+
+          <div className="login-features">
+            <div>● Upload evidence</div>
+            <div>● AI verification</div>
+            <div>● Build public trust</div>
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT SIDE */}
+      <div className="login-form-section">
+        <div className="login-form-container">
+          <div className="mobile-logo">
+            P<span>/</span>W
+          </div>
+
+          <div className="form-heading">
+            <span>WELCOME BACK</span>
+            <p>Login to continue</p>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              alert("Login successful!");
+            }}
+          >
+            <div className="input-group">
+              <label>Email Address</label>
+
+              <input
+                type="email"
+                placeholder="Enter your email"
+                required
+              />
+            </div>
+
+            <div className="input-group">
+              <label>Password</label>
+
               <input
                 type="password"
                 placeholder="Enter your password"
                 required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
+
+            <div className="forgot-row">
+              <label className="remember-me">
+                <input type="checkbox" />
+                <span>Remember me</span>
+              </label>
+
+              <button
+                type="button"
+                className="forgot-password"
+              >
+                Forgot password?
+              </button>
+            </div>
+
+            <button type="submit" className="login-button">
+              Login
+              <span>→</span>
+            </button>
+          </form>
+
+          <div className="login-divider">
+            <span />
+            <p>OR CONTINUE WITH</p>
+            <span />
           </div>
 
-          {/* Options */}
-          <div className="login-options">
-
-            <label className="remember-me">
-              <input type="checkbox" />
-              Remember me
-            </label>
-
-            <Link to="/forgot-password">
-              Forgot password?
-            </Link>
-
+          <div className="social-buttons">
+            <button>G</button>
+            <button>◉</button>
+            <button>GH</button>
           </div>
 
-          {/* Login Button */}
-          <button
-            type="submit"
-            className="login-submit"
-          >
-            LOGIN <span>→</span>
-          </button>
-
-        </form>
-
-        {/* Divider */}
-        <div className="login-divider">
-          OR CONTINUE WITH
+          <p className="register-text">
+            Don't have an account?
+            <button type="button">Register</button>
+          </p>
         </div>
-
-        {/* Social Login */}
-        <div className="social-login">
-
-          <button
-            type="button"
-            className="social-btn google-btn"
-            aria-label="Continue with Google"
-          >
-            <FcGoogle size={21} />
-          </button>
-
-          <button
-            type="button"
-            className="social-btn facebook-btn"
-            aria-label="Continue with Facebook"
-          >
-            <FaFacebookF size={18} />
-          </button>
-
-          <button
-            type="button"
-            className="social-btn github-btn"
-            aria-label="Continue with GitHub"
-          >
-            <FaGithub size={20} />
-          </button>
-
-        </div>
-
-        {/* Register */}
-        <p className="register-text">
-          Don't have an account?
-
-          <Link to="/register">
-            CREATE ACCOUNT
-          </Link>
-        </p>
-
       </div>
     </div>
   );
 }
+
+export default Login;

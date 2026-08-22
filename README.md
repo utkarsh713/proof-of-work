@@ -1,37 +1,83 @@
-<<<<<<< HEAD
-# Proof of Work
+# Proof-of-Work — Homepage
 
-AI-powered platform for transparent and verifiable public works.
+A cinematic, dark, editorial homepage for a public-infrastructure transparency
+platform. Built with React + Vite, Tailwind CSS, Framer Motion, and Lucide icons.
 
-## Tech Stack
+## Setup
 
-- React
-- Spring Boot
-- PostgreSQL
-- Python
-- AI/ML
+```bash
+npm install
+npm run dev
+```
 
-## Team
+Then open the local URL Vite prints (usually `http://localhost:5173`).
 
-- Utkarsh
-- Anjali
-- Sujal
-- Sarad
-=======
-# React + Vite
+To build for production:
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+```bash
+npm run build
+npm run preview
+```
 
-Currently, two official plugins are available:
+## Adding your media
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+No video/image assets were provided with the brief, so every media slot
+currently renders a dark placeholder (subtle grain + hatch pattern) instead
+of a broken element. Drop your real files into `public/assets/` using the
+exact filenames listed in `public/assets/README.md` — the components already
+reference those paths, so nothing else needs to change.
 
-## React Compiler
+## Structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```
+src/
+├── assets/                 (unused — see public/assets instead)
+├── components/
+│   ├── Navbar.jsx
+│   ├── Hero.jsx
+│   ├── TrustBar.jsx
+│   ├── InfrastructureShowcase.jsx
+│   ├── BeforeAfter.jsx
+│   ├── HowItWorks.jsx
+│   ├── Gallery.jsx
+│   ├── LiveProjects.jsx
+│   ├── Impact.jsx
+│   ├── FinalCTA.jsx
+│   ├── Footer.jsx
+│   ├── MagneticButton.jsx
+│   ├── CursorDot.jsx
+│   └── ScrollProgress.jsx
+├── hooks/
+│   └── useCountUp.js
+├── pages/
+│   └── Home.jsx
+├── App.jsx
+├── main.jsx
+└── index.css
+```
 
-## Expanding the Oxlint configuration
+## Design tokens
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
->>>>>>> 0587dc6 (Complete proof of Work frontend)
+| Token | Value |
+|---|---|
+| Background | `#080A09` |
+| Secondary Background | `#101311` |
+| Surface | `#151916` |
+| Border | `rgba(255,255,255,0.10)` |
+| Primary Text | `#F2F3EF` |
+| Secondary Text | `#A7ADA5` |
+| Accent Green | `#B7D36B` |
+| Dark Green | `#52613A` |
+| Muted Orange | `#D88A4A` |
+
+Typography: **Space Grotesk** (display/headings), **Inter** (body),
+**IBM Plex Mono** (labels, eyebrows, data/numbers) — loaded via Google Fonts
+in `index.html`.
+
+## Notes
+
+- Every scroll animation uses `whileInView`/`viewport={{ once: true }}` so
+  nothing re-triggers awkwardly if the user scrolls back up.
+- `prefers-reduced-motion` is respected globally in `index.css`.
+- The before/after slider and count-up stats are hand-rolled (no extra
+  dependencies) so the bundle stays lean for a hackathon demo.
