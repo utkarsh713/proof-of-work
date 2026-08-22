@@ -5,7 +5,7 @@ import math
 from datetime import datetime
 
 from PIL import Image
-from PIL.ExifTags import TAGS, GPSTAGS
+from PIL.ExifTags import TAGS, GPSTAGS, IFD
 
 from sentence_transformers import SentenceTransformer, util
 
@@ -17,7 +17,7 @@ from sentence_transformers import SentenceTransformer, util
 app = FastAPI(
     title="Proof-of-Work AI Verification Service",
     description="AI service for verifying before and after evidence",
-    version="1.0.0"
+    version="2.0.0"
 )
 
 
@@ -52,8 +52,8 @@ os.makedirs(
 def home():
 
     return {
-        "message": "Proof-of-work AI Service is running",
-        "status": "Ok"
+        "message": "Proof-of-Work AI Service is running",
+        "status": "OK"
     }
 
 
@@ -66,86 +66,356 @@ def health():
 
 
 # ============================================================
-# IMAGE METADATA
+# SAFE GPS VALUE CONVERTER
+# ============================================================
+
+def rational_to_float(value):
+    """
+    Converts Pillow EXIF GPS values into float.
+
+    Handles:
+    - int
+    - float
+    - IFDRational
+    - tuple/list
+    """
+
+    try:
+
+        if value is None:
+            return None
+
+        # Normal number
+        if isinstance(value, (int, float)):
+            return float(value)
+
+        # Pillow IFDRational
+        if hasattr(value, "numerator") and hasattr(value, "denominator"):
+
+            if value.denominator == 0:
+                return None
+
+            return float(value.numerator) / float(value.denominator)
+
+        # Tuple such as (numerator, denominator)
+        if isinstance(value, tuple) and len(value) == 2:
+
+            numerator = float(value[0])
+            denominator = float(value[1])
+
+            if denominator == 0:
+                return None
+
+            return numerator / denominator
+
+        return float(value)
+
+    except Exception as e:
+
+        print("Rational conversion error:", e)
+
+        return None
+
+
+# ============================================================
+# GPS DMS -> DECIMAL
+# ============================================================
+
+def gps_to_decimal(values, reference):
+    """
+    Converts GPS coordinates from:
+
+        Degrees / Minutes / Seconds
+
+    to:
+
+        Decimal degrees
+    """
+
+    try:
+
+        if not values:
+            return None
+
+        if len(values) != 3:
+            return None
+
+        degrees = rational_to_float(values[0])
+        minutes = rational_to_float(values[1])
+        seconds = rational_to_float(values[2])
+
+        if (
+            degrees is None
+            or minutes is None
+            or seconds is None
+        ):
+            return None
+
+        decimal = (
+            degrees
+            +
+            (minutes / 60.0)
+            +
+            (seconds / 3600.0)
+        )
+
+        reference = str(reference).upper()
+
+        if reference in ["S", "W"]:
+            decimal = -decimal
+
+        return decimal
+
+    except Exception as e:
+
+        print("GPS decimal conversion error:", e)
+
+        return None
+
+
+# ============================================================
+# IMAGE METADATA EXTRACTION
 # ============================================================
 
 def get_image_metadata(image_path):
 
+    print("\n====================================")
     print("READING IMAGE:", image_path)
-
-    image = Image.open(image_path)
-
-    exif_data = image.getexif()
-
-    print(
-        "EXIF DATA:",
-        dict(exif_data)
-    )
+    print("====================================")
 
     metadata = {
+
         "timestamp": None,
-        "gps": None
+
+        "timestamp_source": None,
+
+        "gps": None,
+
+        "gps_source": None
     }
 
-    # --------------------------------------------------------
-    # Timestamp
-    # --------------------------------------------------------
+    try:
 
-    for tag_id, value in exif_data.items():
+        image = Image.open(image_path)
 
-        tag_name = TAGS.get(
-            tag_id,
-            tag_id
+        print(
+            "IMAGE FORMAT:",
+            image.format
         )
 
-        if tag_name in [
-            "DateTimeOriginal",
-            "DateTimeDigitized",
-            "DateTime"
-        ]:
+        print(
+            "IMAGE SIZE:",
+            image.size
+        )
 
-            metadata["timestamp"] = str(value)
+        # ----------------------------------------------------
+        # READ EXIF
+        # ----------------------------------------------------
 
-    # --------------------------------------------------------
-    # GPS
-    # --------------------------------------------------------
+        exif_data = image.getexif()
 
-    gps_info = exif_data.get(34853)
+        if not exif_data:
 
-    if gps_info:
+            print("NO EXIF DATA FOUND")
 
-        gps_data = {}
+            return metadata
 
-        for key, value in gps_info.items():
+        print(
+            "EXIF TAG COUNT:",
+            len(exif_data)
+        )
 
-            gps_name = GPSTAGS.get(
-                key,
-                key
+        # ====================================================
+        # TIMESTAMP
+        # ====================================================
+
+        timestamp_tags = [
+
+            36867,  # DateTimeOriginal
+
+            36868,  # DateTimeDigitized
+
+            306     # DateTime
+        ]
+
+        for tag_id in timestamp_tags:
+
+            value = exif_data.get(tag_id)
+
+            if value:
+
+                tag_name = TAGS.get(
+                    tag_id,
+                    tag_id
+                )
+
+                metadata["timestamp"] = str(value)
+
+                metadata["timestamp_source"] = str(
+                    tag_name
+                )
+
+                print(
+                    "TIMESTAMP FOUND:",
+                    metadata["timestamp"]
+                )
+
+                print(
+                    "TIMESTAMP SOURCE:",
+                    metadata["timestamp_source"]
+                )
+
+                break
+
+        # ====================================================
+        # GPS
+        # ====================================================
+
+        gps_data = None
+
+        # ----------------------------------------------------
+        # Modern Pillow method
+        # ----------------------------------------------------
+
+        try:
+
+            gps_data = exif_data.get_ifd(
+                IFD.GPSInfo
             )
 
-            gps_data[gps_name] = value
+        except Exception as e:
 
-        metadata["gps"] = {
-
-            "latitude": str(
-                gps_data.get("GPSLatitude")
-            ),
-
-            "latitude_ref": str(
-                gps_data.get("GPSLatitudeRef")
-            ),
-
-            "longitude": str(
-                gps_data.get("GPSLongitude")
-            ),
-
-            "longitude_ref": str(
-                gps_data.get("GPSLongitudeRef")
+            print(
+                "get_ifd GPS error:",
+                e
             )
-        }
+
+        # ----------------------------------------------------
+        # Fallback for older Pillow
+        # ----------------------------------------------------
+
+        if not gps_data:
+
+            try:
+
+                gps_data = exif_data.get(
+                    34853
+                )
+
+            except Exception as e:
+
+                print(
+                    "Legacy GPS read error:",
+                    e
+                )
+
+        # ----------------------------------------------------
+        # Process GPS
+        # ----------------------------------------------------
+
+        if gps_data:
+
+            readable_gps = {}
+
+            for key, value in gps_data.items():
+
+                gps_name = GPSTAGS.get(
+                    key,
+                    key
+                )
+
+                readable_gps[
+                    gps_name
+                ] = value
+
+            print(
+                "GPS RAW DATA:",
+                readable_gps
+            )
+
+            latitude = gps_to_decimal(
+
+                readable_gps.get(
+                    "GPSLatitude"
+                ),
+
+                readable_gps.get(
+                    "GPSLatitudeRef"
+                )
+            )
+
+            longitude = gps_to_decimal(
+
+                readable_gps.get(
+                    "GPSLongitude"
+                ),
+
+                readable_gps.get(
+                    "GPSLongitudeRef"
+                )
+            )
+
+            # ------------------------------------------------
+            # GPS successfully converted
+            # ------------------------------------------------
+
+            if (
+                latitude is not None
+                and
+                longitude is not None
+            ):
+
+                metadata["gps"] = {
+
+                    "latitude":
+                        latitude,
+
+                    "longitude":
+                        longitude,
+
+                    "latitude_ref":
+                        str(
+                            readable_gps.get(
+                                "GPSLatitudeRef"
+                            )
+                        ),
+
+                    "longitude_ref":
+                        str(
+                            readable_gps.get(
+                                "GPSLongitudeRef"
+                            )
+                        )
+                }
+
+                metadata["gps_source"] = "EXIF_GPS"
+
+                print(
+                    "GPS FOUND:",
+                    metadata["gps"]
+                )
+
+            else:
+
+                print(
+                    "GPS TAG FOUND BUT COULD NOT CONVERT"
+                )
+
+        else:
+
+            print(
+                "GPS NOT FOUND IN EXIF"
+            )
+
+    except Exception as e:
+
+        print(
+            "Metadata extraction error:",
+            e
+        )
 
     print(
-        "RETURNING METADATA:",
+        "FINAL METADATA:",
         metadata
     )
 
@@ -153,104 +423,52 @@ def get_image_metadata(image_path):
 
 
 # ============================================================
-# GPS CONVERSION
+# TIMESTAMP PARSER
 # ============================================================
 
-def convert_gps_to_decimal(gps_data):
+def parse_timestamp(timestamp):
 
-    if not gps_data:
-
+    if not timestamp:
         return None
 
-    try:
+    timestamp = str(
+        timestamp
+    ).strip()
 
-        lat = gps_data.get(
-            "latitude"
-        )
+    formats = [
 
-        lat_ref = gps_data.get(
-            "latitude_ref"
-        )
+        "%Y:%m:%d %H:%M:%S",
 
-        lon = gps_data.get(
-            "longitude"
-        )
+        "%Y-%m-%d %H:%M:%S",
 
-        lon_ref = gps_data.get(
-            "longitude_ref"
-        )
+        "%Y:%m:%d %H:%M:%S%z",
 
-        if not lat or not lon:
+        "%Y-%m-%dT%H:%M:%S"
+    ]
 
-            return None
+    for fmt in formats:
 
-        def convert(value):
+        try:
 
-            value = value.strip(
-                "[]()"
+            return datetime.strptime(
+                timestamp,
+                fmt
             )
 
-            parts = value.split(",")
+        except ValueError:
 
-            if len(parts) != 3:
+            continue
 
-                return None
+    print(
+        "Unable to parse timestamp:",
+        timestamp
+    )
 
-            d = float(
-                parts[0].strip()
-            )
-
-            m = float(
-                parts[1].strip()
-            )
-
-            s = float(
-                parts[2].strip()
-            )
-
-            return (
-                d
-                +
-                (m / 60)
-                +
-                (s / 3600)
-            )
-
-        latitude = convert(lat)
-
-        longitude = convert(lon)
-
-        if latitude is None or longitude is None:
-
-            return None
-
-        if lat_ref == "S":
-
-            latitude = -latitude
-
-        if lon_ref == "W":
-
-            longitude = -longitude
-
-        return {
-
-            "latitude": latitude,
-
-            "longitude": longitude
-        }
-
-    except Exception as e:
-
-        print(
-            "GPS conversion error:",
-            e
-        )
-
-        return None
+    return None
 
 
 # ============================================================
-# GPS DISTANCE
+# GPS DISTANCE - HAVERSINE
 # ============================================================
 
 def calculate_distance(
@@ -260,11 +478,16 @@ def calculate_distance(
     lon2
 ):
 
+    # Earth radius in meters
     R = 6371000
 
-    lat1_rad = math.radians(lat1)
+    lat1_rad = math.radians(
+        lat1
+    )
 
-    lat2_rad = math.radians(lat2)
+    lat2_rad = math.radians(
+        lat2
+    )
 
     delta_lat = math.radians(
         lat2 - lat1
@@ -292,8 +515,12 @@ def calculate_distance(
     )
 
     c = 2 * math.atan2(
+
         math.sqrt(a),
-        math.sqrt(1 - a)
+
+        math.sqrt(
+            1 - a
+        )
     )
 
     return R * c
@@ -308,21 +535,33 @@ def check_metadata(
     after_metadata
 ):
 
-    before_timestamp = before_metadata.get(
-        "timestamp"
+    before_timestamp = (
+        before_metadata.get(
+            "timestamp"
+        )
     )
 
-    after_timestamp = after_metadata.get(
-        "timestamp"
+    after_timestamp = (
+        after_metadata.get(
+            "timestamp"
+        )
     )
 
-    before_gps = before_metadata.get(
-        "gps"
+    before_gps = (
+        before_metadata.get(
+            "gps"
+        )
     )
 
-    after_gps = after_metadata.get(
-        "gps"
+    after_gps = (
+        after_metadata.get(
+            "gps"
+        )
     )
+
+    # ========================================================
+    # TIMESTAMP
+    # ========================================================
 
     timestamp_check = (
 
@@ -333,6 +572,36 @@ def check_metadata(
         after_timestamp is not None
     )
 
+    timestamp_order_check = None
+
+    if timestamp_check:
+
+        before_time = parse_timestamp(
+            before_timestamp
+        )
+
+        after_time = parse_timestamp(
+            after_timestamp
+        )
+
+        if (
+            before_time
+            and
+            after_time
+        ):
+
+            timestamp_order_check = (
+                after_time >= before_time
+            )
+
+        else:
+
+            timestamp_order_check = False
+
+    # ========================================================
+    # GPS
+    # ========================================================
+
     gps_check = (
 
         before_gps is not None
@@ -342,89 +611,53 @@ def check_metadata(
         after_gps is not None
     )
 
-    timestamp_order_check = None
-
     gps_distance_meters = None
 
     gps_location_check = None
 
-    # --------------------------------------------------------
-    # Timestamp verification
-    # --------------------------------------------------------
-
-    if timestamp_check:
+    if gps_check:
 
         try:
 
-            before_time = datetime.strptime(
-                before_timestamp,
-                "%Y:%m:%d %H:%M:%S"
-            )
-
-            after_time = datetime.strptime(
-                after_timestamp,
-                "%Y:%m:%d %H:%M:%S"
-            )
-
-            timestamp_order_check = (
-                after_time >= before_time
-            )
-
-        except Exception as e:
-
-            print(
-                "Timestamp error:",
-                e
-            )
-
-            timestamp_order_check = False
-
-    # --------------------------------------------------------
-    # GPS verification
-    # --------------------------------------------------------
-
-    if gps_check:
-
-        before_location = convert_gps_to_decimal(
-            before_gps
-        )
-
-        after_location = convert_gps_to_decimal(
-            after_gps
-        )
-
-        if before_location and after_location:
-
             gps_distance_meters = calculate_distance(
 
-                before_location[
+                before_gps[
                     "latitude"
                 ],
 
-                before_location[
+                before_gps[
                     "longitude"
                 ],
 
-                after_location[
+                after_gps[
                     "latitude"
                 ],
 
-                after_location[
+                after_gps[
                     "longitude"
                 ]
             )
+
+            # -----------------------------------------------
+            # Maximum allowed distance
+            # -----------------------------------------------
 
             gps_location_check = (
                 gps_distance_meters <= 500
             )
 
-        else:
+        except Exception as e:
+
+            print(
+                "GPS distance error:",
+                e
+            )
 
             gps_location_check = False
 
-    # --------------------------------------------------------
-    # Overall metadata status
-    # --------------------------------------------------------
+    # ========================================================
+    # OVERALL STATUS
+    # ========================================================
 
     if (
 
@@ -436,17 +669,25 @@ def check_metadata(
 
         and
 
-        timestamp_order_check
+        timestamp_order_check is True
 
         and
 
-        gps_location_check
+        gps_location_check is True
 
     ):
 
         status = "VERIFIED"
 
-    elif timestamp_check or gps_check:
+    elif (
+
+        timestamp_check
+
+        or
+
+        gps_check
+
+    ):
 
         status = "PARTIAL_METADATA"
 
@@ -469,7 +710,14 @@ def check_metadata(
             gps_location_check,
 
         "gps_distance_meters":
-            gps_distance_meters,
+            (
+                round(
+                    gps_distance_meters,
+                    2
+                )
+                if gps_distance_meters is not None
+                else None
+            ),
 
         "status":
             status
@@ -483,7 +731,9 @@ def check_metadata(
 def find_evidence_files(work_id):
 
     work_folder = os.path.join(
+
         UPLOAD_DIR,
+
         str(work_id)
     )
 
@@ -510,27 +760,39 @@ def find_evidence_files(work_id):
 
         file_lower = file.lower()
 
-        if "before" in file_lower:
+        if (
+            "before" in file_lower
+            and
+            not file_lower.startswith(".")
+        ):
 
             before_file = os.path.join(
+
                 work_folder,
+
                 file
             )
 
-        elif "after" in file_lower:
+        elif (
+            "after" in file_lower
+            and
+            not file_lower.startswith(".")
+        ):
 
             after_file = os.path.join(
+
                 work_folder,
+
                 file
             )
 
     print(
-        "Before File:",
+        "BEFORE FILE:",
         before_file
     )
 
     print(
-        "After File:",
+        "AFTER FILE:",
         after_file
     )
 
@@ -558,31 +820,53 @@ def compare_images(
         after_path
     ).convert("RGB")
 
+    # ========================================================
+    # BEFORE EMBEDDING
+    # ========================================================
+
     print(
-        "Generating before image embedding..."
+        "Generating BEFORE image embedding..."
     )
 
     before_embedding = image_model.encode(
+
         before_image,
+
         convert_to_tensor=True
     )
 
+    # ========================================================
+    # AFTER EMBEDDING
+    # ========================================================
+
     print(
-        "Generating after image embedding..."
+        "Generating AFTER image embedding..."
     )
 
     after_embedding = image_model.encode(
+
         after_image,
+
         convert_to_tensor=True
     )
 
+    # ========================================================
+    # COSINE SIMILARITY
+    # ========================================================
+
     similarity = util.cos_sim(
+
         before_embedding,
+
         after_embedding
     ).item()
 
+    # Keep value between 0 and 1
+
     similarity = max(
+
         0.0,
+
         min(
             1.0,
             similarity
@@ -591,9 +875,9 @@ def compare_images(
 
     difference = 1 - similarity
 
-    # --------------------------------------------------------
-    # Visual change thresholds
-    # --------------------------------------------------------
+    # ========================================================
+    # CHANGE CLASSIFICATION
+    # ========================================================
 
     if difference >= 0.30:
 
@@ -654,30 +938,36 @@ def check_work_description(
         after_path
     ).convert("RGB")
 
-    # --------------------------------------------------------
-    # Encode image
-    # --------------------------------------------------------
+    # ========================================================
+    # IMAGE EMBEDDING
+    # ========================================================
 
     image_embedding = image_model.encode(
+
         after_image,
+
         convert_to_tensor=True
     )
 
-    # --------------------------------------------------------
-    # Encode description
-    # --------------------------------------------------------
+    # ========================================================
+    # TEXT EMBEDDING
+    # ========================================================
 
     text_embedding = image_model.encode(
+
         work_description,
+
         convert_to_tensor=True
     )
 
-    # --------------------------------------------------------
-    # Similarity
-    # --------------------------------------------------------
+    # ========================================================
+    # IMAGE-TEXT SIMILARITY
+    # ========================================================
 
     similarity = util.cos_sim(
+
         image_embedding,
+
         text_embedding
     ).item()
 
@@ -696,34 +986,34 @@ async def upload_evidence(
 
     work_id: int = Form(...),
 
-    before_image: UploadFile =
-        File(...),
+    before_image: UploadFile = File(...),
 
-    after_image: UploadFile =
-        File(...)
+    after_image: UploadFile = File(...)
 ):
 
     work_folder = os.path.join(
+
         UPLOAD_DIR,
+
         str(work_id)
     )
 
     os.makedirs(
+
         work_folder,
+
         exist_ok=True
     )
 
-    # --------------------------------------------------------
-    # Save BEFORE
-    # --------------------------------------------------------
+    # ========================================================
+    # BEFORE
+    # ========================================================
 
     before_path = os.path.join(
 
         work_folder,
 
-        "before_"
-        +
-        before_image.filename
+        "before_" + before_image.filename
     )
 
     with open(
@@ -732,21 +1022,21 @@ async def upload_evidence(
     ) as buffer:
 
         shutil.copyfileobj(
+
             before_image.file,
+
             buffer
         )
 
-    # --------------------------------------------------------
-    # Save AFTER
-    # --------------------------------------------------------
+    # ========================================================
+    # AFTER
+    # ========================================================
 
     after_path = os.path.join(
 
         work_folder,
 
-        "after_"
-        +
-        after_image.filename
+        "after_" + after_image.filename
     )
 
     with open(
@@ -755,7 +1045,9 @@ async def upload_evidence(
     ) as buffer:
 
         shutil.copyfileobj(
+
             after_image.file,
+
             buffer
         )
 
@@ -785,7 +1077,9 @@ def verify_metadata(
 ):
 
     work_folder = os.path.join(
+
         UPLOAD_DIR,
+
         str(work_id)
     )
 
@@ -798,37 +1092,51 @@ def verify_metadata(
                 "Work ID not found"
         }
 
-    before_file, after_file = \
+    before_file, after_file = (
         find_evidence_files(
             work_id
         )
+    )
 
-    if not before_file or not after_file:
+    if (
+        not before_file
+        or
+        not after_file
+    ):
 
         return {
             "error":
                 "Before and After image not found"
         }
 
-    before_metadata = \
-        get_image_metadata(
-            before_file
-        )
+    # ========================================================
+    # READ METADATA
+    # ========================================================
 
-    after_metadata = \
-        get_image_metadata(
-            after_file
-        )
+    before_metadata = get_image_metadata(
 
-    metadata_result = \
-        check_metadata(
-            before_metadata,
-            after_metadata
-        )
+        before_file
+    )
+
+    after_metadata = get_image_metadata(
+
+        after_file
+    )
+
+    # ========================================================
+    # VERIFY
+    # ========================================================
+
+    metadata_result = check_metadata(
+
+        before_metadata,
+
+        after_metadata
+    )
 
     return {
 
-        "Work_id":
+        "work_id":
             work_id,
 
         "before":
@@ -852,7 +1160,9 @@ def verify_ai(
 ):
 
     work_folder = os.path.join(
+
         UPLOAD_DIR,
+
         str(work_id)
     )
 
@@ -865,12 +1175,17 @@ def verify_ai(
                 "Work ID not found"
         }
 
-    before_file, after_file = \
+    before_file, after_file = (
         find_evidence_files(
             work_id
         )
+    )
 
-    if not before_file or not after_file:
+    if (
+        not before_file
+        or
+        not after_file
+    ):
 
         return {
             "error":
@@ -880,7 +1195,9 @@ def verify_ai(
     try:
 
         ai_result = compare_images(
+
             before_file,
+
             after_file
         )
 
@@ -917,11 +1234,12 @@ def final_verification(
     work_id: int
 ):
 
-    # --------------------------------------------------------
-    # Metadata
-    # --------------------------------------------------------
+    # ========================================================
+    # METADATA
+    # ========================================================
 
     metadata_response = verify_metadata(
+
         work_id
     )
 
@@ -929,11 +1247,12 @@ def final_verification(
 
         return metadata_response
 
-    # --------------------------------------------------------
+    # ========================================================
     # AI
-    # --------------------------------------------------------
+    # ========================================================
 
     ai_response = verify_ai(
+
         work_id
     )
 
@@ -941,29 +1260,33 @@ def final_verification(
 
         return ai_response
 
-    metadata_result = \
+    metadata_result = (
         metadata_response[
             "metadata_verification"
         ]
+    )
 
-    ai_result = \
+    ai_result = (
         ai_response[
             "ai_verification"
         ]
+    )
 
-    metadata_status = \
+    metadata_status = (
         metadata_result[
             "status"
         ]
+    )
 
-    ai_status = \
+    ai_status = (
         ai_result[
             "status"
         ]
+    )
 
-    # --------------------------------------------------------
-    # Final decision
-    # --------------------------------------------------------
+    # ========================================================
+    # FINAL DECISION
+    # ========================================================
 
     if (
 
@@ -977,6 +1300,11 @@ def final_verification(
 
         final_status = "VERIFIED"
 
+        reason = (
+            "Strong visual change with valid "
+            "timestamp and GPS metadata"
+        )
+
     elif ai_status in [
 
         "SIGNIFICANT_CHANGE",
@@ -987,9 +1315,19 @@ def final_verification(
 
         final_status = "NEEDS_REVIEW"
 
+        reason = (
+            "Visual change detected but "
+            "metadata verification is incomplete"
+        )
+
     else:
 
         final_status = "REJECTED"
+
+        reason = (
+            "Insufficient evidence of meaningful "
+            "work completion"
+        )
 
     return {
 
@@ -1007,22 +1345,8 @@ def final_verification(
             "status":
                 final_status,
 
-            "reason": (
-
-                "Strong visual change with valid metadata"
-
-                if final_status == "VERIFIED"
-
-                else
-
-                "Visual change detected but additional verification is required"
-
-                if final_status == "NEEDS_REVIEW"
-
-                else
-
-                "Insufficient evidence of meaningful work completion"
-            )
+            "reason":
+                reason
         }
     }
 
@@ -1036,12 +1360,13 @@ async def verify_work(
 
     work_id: int = Form(...),
 
-    work_description: str =
-        Form(...)
+    work_description: str = Form(...)
 ):
 
     work_folder = os.path.join(
+
         UPLOAD_DIR,
+
         str(work_id)
     )
 
@@ -1054,366 +1379,143 @@ async def verify_work(
                 "Work ID not found"
         }
 
-    before_file, after_file = \
+    before_file, after_file = (
         find_evidence_files(
             work_id
         )
+    )
 
-    if not before_file or not after_file:
+    if (
+        not before_file
+        or
+        not after_file
+    ):
 
         return {
             "error":
                 "Before and After image not found"
         }
 
-    # --------------------------------------------------------
-    # Visual comparison
-    # --------------------------------------------------------
+    # ========================================================
+    # VISUAL COMPARISON
+    # ========================================================
 
     ai_result = compare_images(
+
         before_file,
+
         after_file
     )
 
-    # --------------------------------------------------------
-    # Description matching
-    # --------------------------------------------------------
+    # ========================================================
+    # DESCRIPTION MATCHING
+    # ========================================================
 
-    work_similarity = \
-        check_work_description(
-            work_description,
-            after_file
-        )
+    work_similarity = check_work_description(
 
-    # --------------------------------------------------------
-    # Score
-    # --------------------------------------------------------
+        work_description,
 
-    visual_score = \
-        ai_result[
-            "difference"
-        ]
-
-    description_score = \
-        work_similarity
-
-    verification_score = (
-
-        visual_score * 0.60
-
-        +
-
-        description_score * 0.40
+        after_file
     )
 
-    verification_score_percent = round(
-        verification_score * 100,
-        2
+    # ========================================================
+    # METADATA
+    # ========================================================
+
+    before_metadata = get_image_metadata(
+
+        before_file
     )
 
-    # --------------------------------------------------------
-    # Decision
-    # --------------------------------------------------------
+    after_metadata = get_image_metadata(
 
-    if verification_score_percent >= 60:
+        after_file
+    )
 
-        status = "LIKELY_COMPLETED"
+    metadata_result = check_metadata(
 
-    elif verification_score_percent >= 35:
+        before_metadata,
 
-        status = "NEEDS_REVIEW"
+        after_metadata
+    )
+
+    # ========================================================
+    # DESCRIPTION STATUS
+    # ========================================================
+
+    if work_similarity >= 0.30:
+
+        description_status = "MATCH"
+
+    elif work_similarity >= 0.15:
+
+        description_status = "PARTIAL_MATCH"
 
     else:
 
-        status = "LOW_EVIDENCE"
-
-    return {
-
-        "work_id":
-            work_id,
-
-        "work_description":
-            work_description,
-
-        "visual_verification":
-            ai_result,
-
-        "work_description_similarity":
-            work_similarity,
-
-        "verification_score":
-            verification_score_percent,
-
-        "final_status":
-            status
-    }
-
-
-# ============================================================
-# COMPLETE VERIFICATION API
-# ============================================================
-
-@app.post("/verify-complete")
-async def verify_complete(
-
-    work_id: int = Form(...),
-
-    work_description: str =
-        Form(...)
-):
+        description_status = "LOW_MATCH"
 
     # ========================================================
-    # FIND WORK
+    # SCORE
     # ========================================================
-
-    work_folder = os.path.join(
-        UPLOAD_DIR,
-        str(work_id)
-    )
-
-    if not os.path.exists(
-        work_folder
-    ):
-
-        return {
-            "error":
-                "Work ID not found"
-        }
-
-    # ========================================================
-    # FIND BEFORE / AFTER
-    # ========================================================
-
-    before_file, after_file = \
-        find_evidence_files(
-            work_id
-        )
-
-    if not before_file or not after_file:
-
-        return {
-            "error":
-                "Before and After image not found"
-        }
-
-    # ========================================================
-    # 1. METADATA VERIFICATION
-    # ========================================================
-
-    before_metadata = \
-        get_image_metadata(
-            before_file
-        )
-
-    after_metadata = \
-        get_image_metadata(
-            after_file
-        )
-
-    metadata_result = \
-        check_metadata(
-            before_metadata,
-            after_metadata
-        )
-
-    # ========================================================
-    # 2. VISUAL AI VERIFICATION
-    # ========================================================
-
-    try:
-
-        visual_result = compare_images(
-            before_file,
-            after_file
-        )
-
-    except Exception as e:
-
-        return {
-
-            "work_id":
-                work_id,
-
-            "error":
-                "Visual AI verification failed",
-
-            "details":
-                str(e)
-        }
-
-    # ========================================================
-    # 3. WORK DESCRIPTION VERIFICATION
-    # ========================================================
-
-    try:
-
-        work_similarity = \
-            check_work_description(
-                work_description,
-                after_file
-            )
-
-    except Exception as e:
-
-        return {
-
-            "work_id":
-                work_id,
-
-            "error":
-                "Work description verification failed",
-
-            "details":
-                str(e)
-        }
-
-    # ========================================================
-    # 4. AI SCORE
-    # ========================================================
-
-    visual_score = \
-        visual_result[
-            "difference"
-        ]
-
-    description_score = \
-        work_similarity
 
     ai_score = (
-
-        visual_score * 0.60
-
-        +
-
-        description_score * 0.40
+        ai_result["difference"] * 100
     )
-
-    ai_score_percent = round(
-        ai_score * 100,
-        2
-    )
-
-    # ========================================================
-    # 5. METADATA SCORE
-    # ========================================================
 
     metadata_score = 0
 
-    if (
-        metadata_result[
-            "timestamp_order_check"
-        ]
-        is True
-    ):
+    if metadata_result[
+        "timestamp_order_check"
+    ] is True:
 
         metadata_score += 50
 
-    if (
-        metadata_result[
-            "gps_location_check"
-        ]
-        is True
-    ):
+    if metadata_result[
+        "gps_location_check"
+    ] is True:
 
         metadata_score += 50
 
-    # ========================================================
-    # 6. FINAL SCORE
-    # ========================================================
+    description_score = (
+        max(
+            0,
+            min(
+                100,
+                work_similarity * 100
+            )
+        )
+    )
 
     final_score = (
 
-        ai_score_percent * 0.70
+        ai_score * 0.50
 
         +
 
         metadata_score * 0.30
-    )
 
-    final_score = round(
-        final_score,
-        2
+        +
+
+        description_score * 0.20
     )
 
     # ========================================================
-    # 7. IMPROVED FINAL DECISION
+    # FINAL DECISION
     # ========================================================
 
-    # --------------------------------------------------------
-    # VERIFIED
-    # --------------------------------------------------------
-
-    if (
-
-        metadata_result[
-            "status"
-        ] == "VERIFIED"
-
-        and
-
-        visual_result[
-            "status"
-        ] == "SIGNIFICANT_CHANGE"
-
-        and
-
-        work_similarity >= 0.25
-
-    ):
+    if final_score >= 70:
 
         final_status = "VERIFIED"
 
-        reason = (
-            "Strong visual change, matching work "
-            "description, valid GPS and timestamp evidence"
-        )
-
-    # --------------------------------------------------------
-    # NEEDS REVIEW
-    # --------------------------------------------------------
-
-    elif (
-
-        visual_result[
-            "status"
-        ] in [
-
-            "SIGNIFICANT_CHANGE",
-
-            "MODERATE_CHANGE"
-
-        ]
-
-        and
-
-        work_similarity >= 0.25
-
-    ):
+    elif final_score >= 45:
 
         final_status = "NEEDS_REVIEW"
-
-        reason = (
-            "Visual change and work-description match "
-            "detected, but GPS/timestamp evidence is incomplete"
-        )
-
-    # --------------------------------------------------------
-    # REJECTED
-    # --------------------------------------------------------
 
     else:
 
         final_status = "REJECTED"
 
-        reason = (
-            "Insufficient visual and semantic evidence "
-            "of meaningful work completion"
-        )
-
-    # ========================================================
-    # 8. RESPONSE
-    # ========================================================
-
     return {
 
         "work_id":
@@ -1422,75 +1524,48 @@ async def verify_complete(
         "work_description":
             work_description,
 
-        "metadata_verification": {
+        "metadata_verification":
+            metadata_result,
 
-            "timestamp_check":
-                metadata_result[
-                    "timestamp_check"
-                ],
+        "ai_verification":
+            ai_result,
 
-            "timestamp_order_check":
-                metadata_result[
-                    "timestamp_order_check"
-                ],
+        "description_verification": {
 
-            "gps_check":
-                metadata_result[
-                    "gps_check"
-                ],
-
-            "gps_location_check":
-                metadata_result[
-                    "gps_location_check"
-                ],
-
-            "gps_distance_meters":
-                metadata_result[
-                    "gps_distance_meters"
-                ],
-
-            "status":
-                metadata_result[
-                    "status"
-                ]
-        },
-
-        "ai_verification": {
-
-            "visual_similarity":
-                visual_result[
-                    "similarity"
-                ],
-
-            "visual_difference":
-                visual_result[
-                    "difference"
-                ],
-
-            "visual_status":
-                visual_result[
-                    "status"
-                ],
-
-            "work_description_similarity":
+            "similarity":
                 work_similarity,
 
-            "ai_score":
-                ai_score_percent
+            "status":
+                description_status
         },
 
-        "final_verification": {
+        "scores": {
+
+            "ai_score":
+                round(
+                    ai_score,
+                    2
+                ),
 
             "metadata_score":
                 metadata_score,
 
+            "description_score":
+                round(
+                    description_score,
+                    2
+                ),
+
             "final_score":
-                final_score,
+                round(
+                    final_score,
+                    2
+                )
+        },
+
+        "final_verification": {
 
             "status":
-                final_status,
-
-            "reason":
-                reason
+                final_status
         }
     }
