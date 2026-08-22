@@ -1,0 +1,15 @@
+com\proofofwork\demo\controller\WorkController.class
+com\proofofwork\demo\entity\Work.class
+com\proofofwork\demo\repository\EvidenceRepository.class
+com\proofofwork\demo\controller\EvidenceController.class
+com\proofofwork\demo\entity\Verification.class
+com\proofofwork\demo\service\EvidenceService.class
+com\proofofwork\demo\controller\VerificationController.class
+com\proofofwork\demo\config\RestTemplateConfig.class
+com\proofofwork\demo\service\WorkService.class
+com\proofofwork\demo\repository\VerificationRepository.class
+com\proofofwork\demo\client\AIServiceClient.class
+com\proofofwork\demo\entity\Evidence.class
+com\proofofwork\demo\service\VerificationService.class
+com\proofofwork\demo\repository\WorkRepository.class
+com\proofofwork\demo\ProofOfWorkApplication.class
