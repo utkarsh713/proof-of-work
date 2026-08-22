@@ -9710,3 +9710,188 @@ button {
   }
 
 }
+/* =========================================
+   FORCE FIX — RECENTLY REGISTERED
+========================================= */
+
+.registered-work-card {
+  width: 100%;
+  margin-top: 24px;
+  padding: 28px;
+  border-radius: 18px;
+
+  background: #08100d;
+  border: 1px solid rgba(184, 245, 42, 0.16);
+
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* HEADER */
+
+.registered-work-header {
+  display: flex !important;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+
+  padding-bottom: 24px;
+
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.page-label {
+  color: #b8f52a;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 3px;
+}
+
+.registered-work-header h2 {
+  margin-top: 8px;
+  font-size: 32px;
+}
+
+/* DETAILS */
+
+.registered-work-details {
+  display: grid !important;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 16px;
+
+  padding: 24px 0;
+}
+
+.registered-work-details > div {
+  min-width: 0;
+
+  padding: 18px;
+
+  border-radius: 12px;
+
+  background: rgba(255,255,255,0.025);
+
+  border: 1px solid
+    rgba(255,255,255,0.08);
+}
+
+/* DESCRIPTION */
+
+.work-description {
+  padding: 20px;
+
+  border-radius: 12px;
+
+  background: rgba(255,255,255,0.025);
+
+  border: 1px solid
+    rgba(255,255,255,0.08);
+}
+
+/* =========================================
+   EVIDENCE — MAIN FIX
+========================================= */
+
+.registered-work-card .registered-evidence {
+  width: 100% !important;
+
+  display: grid !important;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr)) !important;
+
+  gap: 20px !important;
+
+  margin-top: 24px;
+
+  align-items: start;
+}
+
+/* EACH IMAGE CARD */
+
+.registered-work-card .registered-evidence > div {
+  width: 100% !important;
+
+  min-width: 0 !important;
+
+  padding: 14px;
+
+  border-radius: 14px;
+
+  overflow: hidden;
+
+  background: rgba(255,255,255,0.025);
+
+  border: 1px solid
+    rgba(255,255,255,0.09);
+}
+
+/* LABEL */
+
+.registered-work-card .registered-evidence p {
+  margin: 0 0 12px;
+
+  color: rgba(255,255,255,0.65);
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+  letter-spacing: 1px;
+
+  text-transform: uppercase;
+}
+
+/* IMAGE */
+
+.registered-work-card .registered-evidence img {
+  display: block !important;
+
+  width: 100% !important;
+
+  max-width: 100% !important;
+
+  height: 300px !important;
+
+  object-fit: cover !important;
+
+  border-radius: 10px;
+
+  box-sizing: border-box;
+}
+
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 900px) {
+
+  .registered-work-details {
+    grid-template-columns: 1fr !important;
+  }
+
+  .registered-work-card .registered-evidence {
+    grid-template-columns: 1fr !important;
+  }
+
+}
+
+@media (max-width: 650px) {
+
+  .registered-work-card {
+    padding: 18px;
+  }
+
+  .registered-work-header {
+    flex-direction: column;
+  }
+
+  .registered-work-card .registered-evidence img {
+    height: 220px !important;
+  }
+
+}
