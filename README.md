@@ -29,9 +29,16 @@ location and timestamps.
 
 ## Project Structure
 
+<<<<<<< Updated upstream
 ```text
 ai-service/
 ├── main.py
 ├── requirements.txt
 ├── .gitignore
 └── README.md
+=======
+- Utkarsh
+- Anjali
+- Sujal
+- Sarat
+>>>>>>> Stashed changes
