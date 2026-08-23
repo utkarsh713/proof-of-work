@@ -1,23 +1,21 @@
 import { NavLink } from "react-router-dom";
 
 function Sidebar() {
-  // Get logged-in user from localStorage
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const currentUser = JSON.parse(
+    localStorage.getItem("currentUser") || "null"
+  );
 
-  // User details
   const userName =
-    user.name ||
-    user.fullName ||
+    currentUser?.name ||
+    currentUser?.fullName ||
+    currentUser?.username ||
     "User";
 
   const userRole =
-    user.role ||
-    "Citizen";
+    currentUser?.role || "Citizen";
 
-  // First letter for avatar
-  const firstLetter = userName
-    .charAt(0)
-    .toUpperCase();
+  const avatarLetter =
+    userName.charAt(0).toUpperCase();
 
   const menuItems = [
     {
@@ -72,7 +70,6 @@ function Sidebar() {
 
       {/* LOGO */}
       <div className="sidebar-logo">
-
         <div className="logo-shield">
           ✓
         </div>
@@ -83,18 +80,15 @@ function Sidebar() {
           </h2>
 
           <p>
-            FOR PUBLIC SERVICES
+            for Public Services
           </p>
         </div>
-
       </div>
-
 
       {/* NAVIGATION */}
       <nav className="sidebar-nav">
 
         {menuItems.map((item) => (
-
           <NavLink
             key={item.label}
             to={item.path}
@@ -104,7 +98,6 @@ function Sidebar() {
               }`
             }
           >
-
             <span className="sidebar-icon">
               {item.icon}
             </span>
@@ -113,35 +106,26 @@ function Sidebar() {
               {item.label}
             </span>
 
-
-            {/* Notification Badge */}
             {item.label === "Notifications" && (
               <span className="notification-badge">
                 3
               </span>
             )}
-
           </NavLink>
-
         ))}
 
       </nav>
-
 
       {/* USER PROFILE */}
       <div className="sidebar-bottom">
 
         <div className="profile-card">
 
-          {/* USER AVATAR */}
           <div className="profile-avatar">
-            {firstLetter}
+            {avatarLetter}
           </div>
 
-
-          {/* USER INFORMATION */}
           <div className="profile-info">
-
             <strong>
               {userName}
             </strong>
@@ -149,13 +133,10 @@ function Sidebar() {
             <span>
               {userRole}
             </span>
-
           </div>
 
         </div>
 
-
-        {/* VIEW PROFILE */}
         <NavLink
           to="/settings"
           className="profile-button"

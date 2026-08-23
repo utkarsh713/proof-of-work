@@ -1713,56 +1713,63 @@ button {
     flex-direction: column;
   }
 }
-/* =========================================
+/* =========================================================
    LOGIN PAGE
-========================================= */
+========================================================= */
 
 .login-page {
   position: relative;
   width: 100%;
   min-height: 100vh;
   overflow: hidden;
-  background: #020706;
+  background: #030606;
   color: #ffffff;
-  font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Background Video */
+/* Background */
 
 .login-video {
   position: fixed;
   inset: 0;
+
   width: 100%;
   height: 100%;
+
   object-fit: cover;
   z-index: 0;
 }
-
-/* Dark cinematic overlay */
 
 .login-overlay {
   position: fixed;
   inset: 0;
   z-index: 1;
+
   background:
     linear-gradient(
       90deg,
-      rgba(0, 0, 0, 0.85) 0%,
-      rgba(0, 0, 0, 0.55) 50%,
-      rgba(0, 0, 0, 0.78) 100%
+      rgba(2, 6, 6, 0.78) 0%,
+      rgba(2, 6, 6, 0.5) 45%,
+      rgba(2, 6, 6, 0.78) 100%
     );
 }
 
-/* Background content */
+/* =========================================================
+   LEFT SIDE
+========================================================= */
 
 .login-bg-content {
   position: relative;
-  z-index: 2;
+  z-index: 3;
+
+  width: 58%;
   min-height: 100vh;
-  padding: 70px 8%;
+
+  padding: 70px 7vw;
+
   display: flex;
   flex-direction: column;
   justify-content: center;
+
   pointer-events: none;
 }
 
@@ -1771,319 +1778,480 @@ button {
   margin-bottom: 35px;
 }
 
-.login-bg-content h1 {
-  font-size: clamp(48px, 6vw, 100px);
-  line-height: 0.95;
-  letter-spacing: -3px;
+.login-bg-logo img,
+.login-bg-logo svg {
+  max-width: 150px;
+  height: auto;
+}
+
+.login-message {
+  max-width: 760px;
+}
+
+.login-message .eyebrow {
+  display: block;
+
+  margin-bottom: 25px;
+
+  color: #a6d83f;
+
+  font-size: 11px;
   font-weight: 800;
+
+  letter-spacing: 3px;
+}
+
+.login-message h1 {
   margin: 0;
-  max-width: 750px;
+
+  font-family:
+    "Barlow Condensed",
+    "Arial Narrow",
+    sans-serif;
+
+  font-size: clamp(60px, 7vw, 105px);
+  font-weight: 900;
+
+  line-height: 0.86;
+  letter-spacing: -2px;
 }
 
-.login-bg-content h1 span {
-  color: #a8d94f;
+.login-message h1 span {
+  color: #a6d83f;
 }
 
-/* =========================================
-   LOGIN MODAL
-========================================= */
+/* =========================================================
+   RIGHT LOGIN PANEL
+========================================================= */
 
-.login-modal {
-  position: absolute;
-  z-index: 5;
-  top: 50%;
-  right: 8%;
-  transform: translateY(-50%);
+.login-form-section {
+  position: fixed;
 
-  width: min(430px, calc(100% - 40px));
-  padding: 42px;
+  top: 0;
+  right: 0;
 
-  background: rgba(7, 13, 12, 0.92);
-  border: 1px solid rgba(168, 217, 79, 0.25);
-  border-radius: 20px;
+  z-index: 10;
+
+  width: 42%;
+  max-width: 620px;
+  min-width: 430px;
+
+  height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 40px;
+
+  background: rgba(5, 11, 10, 0.96);
+
+  border-left: 1px solid rgba(166, 216, 63, 0.18);
 
   box-shadow:
-    0 25px 80px rgba(0, 0, 0, 0.6),
-    0 0 50px rgba(168, 217, 79, 0.08);
-
-  backdrop-filter: blur(18px);
+    -20px 0 70px rgba(0, 0, 0, 0.35);
 }
 
-/* Close */
+.login-form-container {
+  width: min(430px, 100%);
 
-.login-close {
-  position: absolute;
-  top: 18px;
-  right: 22px;
+  padding: 42px 38px;
 
-  color: #aaa;
+  background: #0b1211;
+
+  border: 1px solid #27312e;
+
+  border-radius: 14px;
+}
+
+/* =========================================================
+   MOBILE LOGO
+========================================================= */
+
+.mobile-logo {
+  display: none;
+
+  margin-bottom: 35px;
+
+  color: #ffffff;
+
+  font-family:
+    "Barlow Condensed",
+    sans-serif;
+
   font-size: 30px;
-  text-decoration: none;
-  line-height: 1;
+  font-weight: 900;
 }
 
-.login-close:hover {
-  color: #a8d94f;
+.mobile-logo span {
+  color: #a6d83f;
 }
 
-/* Logo */
+/* =========================================================
+   FORM HEADING
+========================================================= */
 
-.login-logo {
-  width: 100px;
-  margin-bottom: 25px;
+.form-heading span {
+  display: block;
+
+  color: #a6d83f;
+
+  font-size: 11px;
+  font-weight: 800;
+
+  letter-spacing: 2.5px;
 }
 
-/* Heading */
+.form-heading p {
+  margin-top: 8px;
 
-.login-modal h2 {
-  margin: 0 0 8px;
-  font-size: 32px;
-  font-weight: 700;
+  color: #8b9792;
+
+  font-size: 13px;
 }
 
-.login-subtitle {
-  margin-bottom: 30px;
-  color: #9da7a3;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.login-subtitle span {
-  color: #a8d94f;
-}
-
-/* =========================================
+/* =========================================================
    FORM
-========================================= */
+========================================================= */
 
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+.login-form-container form {
+  margin-top: 32px;
 }
 
 .input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  margin-bottom: 22px;
 }
 
 .input-group label {
-  font-size: 13px;
-  color: #d9dfdc;
-  font-weight: 500;
+  display: block;
+
+  margin-bottom: 9px;
+
+  color: #dce3df;
+
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .input-group input {
   width: 100%;
-  box-sizing: border-box;
+  height: 50px;
 
-  padding: 14px 15px;
+  padding: 0 15px;
 
-  background: #0c1412;
-  border: 1px solid #26332e;
-  border-radius: 10px;
-
-  color: white;
   outline: none;
 
-  font-size: 14px;
+  background: #070d0c;
 
-  transition: 0.3s ease;
+  border: 1px solid #28332f;
+
+  border-radius: 8px;
+
+  color: #ffffff;
+
+  font-size: 13px;
+
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
 .input-group input::placeholder {
-  color: #66716c;
+  color: #65716c;
 }
 
 .input-group input:focus {
-  border-color: #a8d94f;
-  box-shadow: 0 0 0 3px rgba(168, 217, 79, 0.08);
+  border-color: #a6d83f;
+
+  box-shadow:
+    0 0 0 3px rgba(166, 216, 63, 0.08);
 }
 
-/* Options */
+/* =========================================================
+   FORGOT ROW
+========================================================= */
 
-.login-options {
+.forgot-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
 
-  font-size: 13px;
+  gap: 15px;
+
+  margin: 4px 0 20px;
 }
 
 .remember-me {
   display: flex;
   align-items: center;
-  gap: 7px;
-  color: #aeb8b4;
+  gap: 8px;
+
+  color: #858f8a;
+
+  font-size: 11px;
+
   cursor: pointer;
 }
 
 .remember-me input {
-  accent-color: #a8d94f;
+  width: 14px;
+  height: 14px;
+
+  accent-color: #a6d83f;
 }
 
-.login-options a {
-  color: #a8d94f;
+.forgot-row a {
+  color: #a6d83f;
+
+  font-size: 11px;
+
   text-decoration: none;
 }
 
-.login-options a:hover {
+.forgot-row a:hover {
   text-decoration: underline;
 }
 
-/* Login Button */
+/* =========================================================
+   ERROR
+========================================================= */
 
-.login-submit {
+.login-error {
+  margin-bottom: 16px;
+
+  padding: 11px 13px;
+
+  background: rgba(220, 72, 62, 0.08);
+
+  border: 1px solid rgba(220, 72, 62, 0.25);
+
+  border-radius: 7px;
+
+  color: #ff9c94;
+
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   LOGIN BUTTON
+========================================================= */
+
+.login-button {
   width: 100%;
+  height: 52px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
 
-  padding: 15px;
+  background: #a6d83f;
 
-  background: #a8d94f;
-  color: #07100c;
+  color: #101500;
 
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
+
   letter-spacing: 1px;
 
   cursor: pointer;
 
-  transition: all 0.3s ease;
+  transition:
+    transform 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
-.login-submit span {
-  margin-left: 8px;
+.login-button:hover {
+  background: #b4e94e;
+
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 10px 30px rgba(166, 216, 63, 0.18);
+}
+
+.login-button span {
   font-size: 18px;
 }
 
-.login-submit:hover {
-  transform: translateY(-2px);
-  background: #c0f064;
-  box-shadow: 0 10px 30px rgba(168, 217, 79, 0.2);
-}
-
-/* =========================================
+/* =========================================================
    DIVIDER
-========================================= */
+========================================================= */
 
 .login-divider {
+  margin: 28px 0;
+
   display: flex;
   align-items: center;
-  gap: 15px;
 
-  margin: 28px 0 20px;
-
-  color: #6e7773;
-  font-size: 11px;
-  letter-spacing: 1px;
-}
-
-.login-divider::before,
-.login-divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: #26332e;
-}
-
-/* =========================================
-   SOCIAL LOGIN
-========================================= */
-
-.social-login {
-  display: flex;
-  justify-content: center;
   gap: 12px;
 }
 
-.social-btn {
-  width: 50px;
-  height: 45px;
+.login-divider span {
+  flex: 1;
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  height: 1px;
 
-  border-radius: 10px;
+  background: #26302d;
+}
 
-  background: #0c1412;
-  border: 1px solid #26332e;
+.login-divider p {
+  color: #68736e;
 
-  color: white;
+  font-size: 9px;
+
+  font-weight: 700;
+
+  letter-spacing: 1.2px;
+
+  white-space: nowrap;
+}
+
+/* =========================================================
+   SOCIAL
+========================================================= */
+
+.social-buttons {
+  display: grid;
+
+  grid-template-columns: repeat(3, 1fr);
+
+  gap: 10px;
+}
+
+.social-buttons button {
+  height: 44px;
+
+  border: 1px solid #28322f;
+
+  border-radius: 8px;
+
+  background: #080e0d;
+
+  color: #ffffff;
+
+  font-size: 13px;
+  font-weight: 700;
+
   cursor: pointer;
 
-  transition: all 0.25s ease;
+  transition:
+    border-color 0.25s ease,
+    background 0.25s ease;
 }
 
-.social-btn:hover {
-  border-color: #a8d94f;
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(168, 217, 79, 0.1);
+.social-buttons button:hover {
+  border-color: #a6d83f;
+
+  background: rgba(166, 216, 63, 0.06);
 }
 
-/* Register */
+/* =========================================================
+   REGISTER
+========================================================= */
 
 .register-text {
-  text-align: center;
-  margin-top: 28px;
+  margin-top: 27px;
 
-  color: #8c9692;
-  font-size: 13px;
+  text-align: center;
+
+  color: #78837e;
+
+  font-size: 11px;
 }
 
 .register-text a {
-  margin-left: 6px;
+  margin-left: 5px;
 
-  color: #a8d94f;
-  font-weight: 700;
+  color: #a6d83f;
+
   text-decoration: none;
+
+  font-weight: 700;
+
+  text-transform: uppercase;
 }
 
 .register-text a:hover {
   text-decoration: underline;
 }
 
-/* =========================================
+/* =========================================================
    RESPONSIVE
-========================================= */
+========================================================= */
 
-@media (max-width: 900px) {
-  .login-page {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+@media (max-width: 1000px) {
+  .login-bg-content {
+    width: 52%;
+    padding-left: 5vw;
+  }
+
+  .login-form-section {
+    width: 48%;
+    min-width: 390px;
+  }
+
+  .login-message h1 {
+    font-size: clamp(52px, 6vw, 78px);
+  }
+}
+
+@media (max-width: 800px) {
+  .login-video {
+    position: fixed;
+  }
+
+  .login-form-section {
+    position: relative;
+
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+
+    min-height: 100vh;
+
+    background: rgba(5, 10, 9, 0.88);
+
+    border-left: none;
+
+    padding: 25px;
   }
 
   .login-bg-content {
     display: none;
   }
 
-  .login-modal {
-    position: relative;
-    top: auto;
-    right: auto;
-    transform: none;
+  .login-form-container {
+    max-width: 460px;
+  }
 
-    margin: 30px 20px;
+  .mobile-logo {
+    display: block;
   }
 }
 
 @media (max-width: 500px) {
-  .login-modal {
+  .login-form-section {
+    padding: 18px;
+  }
+
+  .login-form-container {
     padding: 30px 22px;
-    border-radius: 16px;
   }
 
-  .login-modal h2 {
-    font-size: 27px;
-  }
-
-  .login-options {
-    align-items: flex-start;
+  .forgot-row {
     flex-direction: column;
-    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .social-buttons {
+    grid-template-columns: 1fr;
   }
 }
 /* =========================================
@@ -18837,5 +19005,449 @@ button {
 
   .save-button {
     width: 100%;
+  }
+}
+/* =========================================
+   DASHBOARD LAYOUT
+========================================= */
+
+.app {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  background: #060909;
+  color: #ffffff;
+}
+
+/* MAIN CONTENT */
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 100vh;
+  padding: 0 32px 40px;
+  background: #080c0c;
+}
+
+
+/* =========================================
+   STATS GRID
+========================================= */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 28px;
+}
+
+
+/* =========================================
+   STAT CARD
+========================================= */
+
+.stat-card {
+  position: relative;
+  min-height: 155px;
+  padding: 22px;
+  border: 1px solid #202828;
+  background: #0d1313;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: transform 0.25s ease,
+              border-color 0.25s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(166, 216, 63, 0.5);
+}
+
+.stat-card-title,
+.stat-card p {
+  color: #8b9696;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+}
+
+.stat-card-value,
+.stat-card h1,
+.stat-card h2 {
+  margin: 14px 0 10px;
+  color: #ffffff;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 48px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.stat-card-change,
+.stat-card span {
+  color: #a6d83f;
+  font-size: 12px;
+}
+
+.stat-card-icon {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+
+  width: 42px;
+  height: 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #293232;
+  background: #111919;
+
+  color: #a6d83f;
+  font-size: 20px;
+}
+
+
+/* =========================================
+   VERIFICATION PROGRESS
+========================================= */
+
+.verification-progress {
+  margin-top: 24px;
+  padding: 30px;
+  border: 1px solid #202828;
+  background: #0b1010;
+  border-radius: 6px;
+}
+
+.verification-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.page-label {
+  color: #a6d83f;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.verification-header h2,
+.registered-work-header h2,
+.empty-work h2 {
+  margin-top: 10px;
+  color: #ffffff;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 38px;
+  font-weight: 700;
+}
+
+.progress-percentage {
+  min-width: 72px;
+  height: 72px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 2px solid #a6d83f;
+  border-radius: 50%;
+
+  color: #a6d83f;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 25px;
+  font-weight: 800;
+}
+
+
+/* =========================================
+   VERIFICATION SUMMARY
+========================================= */
+
+.verification-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 35px;
+  border-top: 1px solid #202828;
+  border-left: 1px solid #202828;
+}
+
+.verification-summary > div {
+  padding: 25px;
+  border-right: 1px solid #202828;
+  border-bottom: 1px solid #202828;
+}
+
+.verification-summary strong {
+  display: block;
+  color: #ffffff;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 40px;
+  font-weight: 800;
+}
+
+.verification-summary span {
+  display: block;
+  margin-top: 6px;
+  color: #7f8989;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+
+/* =========================================
+   EMPTY STATE
+========================================= */
+
+.empty-state {
+  margin-top: 30px;
+  padding: 40px;
+  text-align: center;
+  border: 1px dashed #293333;
+  background: #090e0e;
+}
+
+.empty-state h3 {
+  color: #ffffff;
+  font-size: 20px;
+}
+
+.empty-state p {
+  max-width: 500px;
+  margin: 10px auto 0;
+  color: #7e8888;
+  line-height: 1.7;
+  font-size: 13px;
+}
+
+
+/* =========================================
+   REGISTERED WORK
+========================================= */
+
+.registered-work-card {
+  margin-top: 24px;
+  padding: 30px;
+  border: 1px solid #202828;
+  background: #0b1010;
+  border-radius: 6px;
+}
+
+.registered-work-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 25px;
+  border-bottom: 1px solid #202828;
+}
+
+.work-status {
+  padding: 9px 14px;
+  background: rgba(166, 216, 63, 0.08);
+  border: 1px solid rgba(166, 216, 63, 0.3);
+  color: #a6d83f;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+
+/* WORK DETAILS */
+
+.registered-work-details {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin-top: 25px;
+  background: #202828;
+  border: 1px solid #202828;
+}
+
+.registered-work-details > div {
+  padding: 20px;
+  background: #0d1313;
+}
+
+.registered-work-details strong {
+  display: block;
+  color: #7d8888;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.registered-work-details p {
+  margin-top: 10px;
+  color: #ffffff;
+  font-size: 13px;
+}
+
+
+/* DESCRIPTION */
+
+.work-description {
+  margin-top: 25px;
+  padding: 22px;
+  background: #0d1313;
+  border-left: 3px solid #a6d83f;
+}
+
+.work-description strong {
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.work-description p {
+  margin-top: 10px;
+  color: #879191;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+
+/* =========================================
+   EVIDENCE
+========================================= */
+
+.registered-evidence {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-top: 25px;
+}
+
+.registered-evidence > div {
+  overflow: hidden;
+  background: #0d1313;
+  border: 1px solid #202828;
+}
+
+.registered-evidence p {
+  padding: 13px 15px;
+  color: #a6d83f;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.registered-evidence img {
+  display: block;
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.registered-evidence img:hover {
+  transform: scale(1.04);
+}
+
+
+/* =========================================
+   GPS
+========================================= */
+
+.registered-gps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-top: 20px;
+  padding: 15px 18px;
+
+  border: 1px solid #202828;
+  background: #0d1313;
+
+  color: #a6d83f;
+  font-size: 12px;
+}
+
+.registered-gps span {
+  color: #7d8888;
+  font-family: monospace;
+}
+
+
+/* =========================================
+   EMPTY WORK
+========================================= */
+
+.empty-work {
+  text-align: center;
+  padding: 70px 30px;
+}
+
+.empty-work h2 {
+  margin-top: 12px;
+}
+
+.empty-work > p:last-child {
+  margin: 14px auto 0;
+  max-width: 500px;
+  color: #7d8888;
+  line-height: 1.7;
+}
+
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .verification-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .main-content {
+    padding: 0 20px 30px;
+  }
+
+  .registered-work-details {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .verification-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .verification-header,
+  .registered-work-header,
+  .registered-gps {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .registered-evidence {
+    grid-template-columns: 1fr;
+  }
+
+  .verification-progress,
+  .registered-work-card {
+    padding: 20px;
+  }
+
+  .verification-header h2,
+  .registered-work-header h2,
+  .empty-work h2 {
+    font-size: 32px;
   }
 }

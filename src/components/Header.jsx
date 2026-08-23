@@ -1,11 +1,26 @@
+import { useNavigate } from "react-router-dom";
+
 function Header() {
+  const navigate = useNavigate();
+
+  // Get logged-in user
+  const currentUser = JSON.parse(
+    localStorage.getItem("currentUser") || "null"
+  );
+
+  const userName =
+    currentUser?.name ||
+    currentUser?.fullName ||
+    currentUser?.username ||
+    "User";
+
   return (
     <header className="dashboard-header">
 
       {/* Welcome */}
       <div className="header-welcome">
         <p className="header-greeting">
-          Welcome back, Anjali! 👋
+          Welcome back, {userName}! 👋
         </p>
 
         <p className="header-subtitle">
@@ -13,13 +28,11 @@ function Header() {
         </p>
       </div>
 
-
       {/* Header Actions */}
       <div className="header-actions">
 
         {/* Search */}
         <div className="search-box">
-
           <span className="search-icon">
             🔍
           </span>
@@ -28,12 +41,14 @@ function Header() {
             type="text"
             placeholder="Search works, locations..."
           />
-
         </div>
 
-
-        {/* Notification */}
-        <button className="notification-button">
+        {/* Notifications */}
+        <button
+          className="notification-button"
+          onClick={() => navigate("/notifications")}
+          type="button"
+        >
           🔔
 
           <span className="notification-dot">
@@ -41,13 +56,11 @@ function Header() {
           </span>
         </button>
 
-
         {/* Register Work */}
         <button
           className="register-header-button"
-          onClick={() => {
-            window.location.href = "/register-work";
-          }}
+          onClick={() => navigate("/register-work")}
+          type="button"
         >
           <span>＋</span>
           Register New Work

@@ -1,379 +1,303 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
-
-function Dashboard() {
-  const navigate = useNavigate();
-
-  const storedWorks = JSON.parse(
-    localStorage.getItem("works") || "[]"
-  );
-
-  const totalWorks = storedWorks.length;
-
-  const completedWorks = storedWorks.filter(
-    (work) => work.status === "Completed"
-  ).length;
-
-  const verificationWorks = storedWorks.filter(
-    (work) =>
-      work.status === "Under Verification" ||
-      work.status === "Pending"
-  ).length;
-
-  const reportedIssues = storedWorks.filter(
-    (work) => work.status === "Issue Reported"
-  ).length;
-
-  const recentWorks = [...storedWorks]
-    .reverse()
-    .slice(0, 5);
-
-  return (
-    <main className="dashboard-page">
-
-      {/* TOP HEADER */}
-      <div className="dashboard-header">
-
-        <div>
-          <h1>
-            Welcome back, Anchal! 👋
-          </h1>
-
-          <p>
-            Let's make public works truly transparent.
-          </p>
-        </div>
-
-        <div className="dashboard-actions">
-
-          <div className="dashboard-search">
-            <span>🔍</span>
-
-            <input
-              type="text"
-              placeholder="Search works, locations..."
-            />
-          </div>
-
-          <button className="notification-button">
-            🔔
-            <span>0</span>
-          </button>
-
-          <button
-            className="register-work-button"
-            onClick={() => navigate("/register-work")}
-          >
-            + Register New Work
-          </button>
-
-        </div>
-
-      </div>
-
-
-      {/* STATS */}
-      <section className="dashboard-stats">
-
-        <div className="stat-card total-card">
-
-          <div>
-            <p>Total Works</p>
-
-            <h2>{totalWorks}</h2>
-
-            <span>
-              {totalWorks > 0
-                ? `${totalWorks} work registered`
-                : "No works registered"}
-            </span>
-
-            <small>This Month</small>
-          </div>
-
-          <div className="stat-icon">
-            📋
-          </div>
-
-        </div>
-
-
-        <div className="stat-card">
-
-          <div>
-            <p>Completed</p>
-
-            <h2>{completedWorks}</h2>
-
-            <span>
-              {completedWorks > 0
-                ? "Works completed"
-                : "No completed works"}
-            </span>
-
-            <small>This Month</small>
-          </div>
-
-          <div className="stat-icon">
-            ✓
-          </div>
-
-        </div>
-
-
-        <div className="stat-card">
-
-          <div>
-            <p>Under Verification</p>
-
-            <h2>{verificationWorks}</h2>
-
-            <span>
-              {verificationWorks > 0
-                ? "Awaiting verification"
-                : "No works awaiting verification"}
-            </span>
-
-            <small>This Month</small>
-          </div>
-
-          <div className="stat-icon">
-            ⏳
-          </div>
-
-        </div>
-
-
-        <div className="stat-card">
-
-          <div>
-            <p>Reported Issues</p>
-
-            <h2>{reportedIssues}</h2>
-
-            <span>
-              {reportedIssues > 0
-                ? "Issues require attention"
-                : "No issues reported"}
-            </span>
-
-            <small>This Month</small>
-          </div>
-
-          <div className="stat-icon">
-            !
-          </div>
-
-        </div>
-
-      </section>
-
-
-      {/* VERIFICATION JOURNEY */}
-      <section className="verification-journey">
-
-        <div className="section-kicker">
-          VERIFICATION JOURNEY
-        </div>
-
-        <h2>
-          Work Verification Progress
-        </h2>
-
-        <div className="journey-stats">
-
-          <div>
-            <strong>
-              {totalWorks}
-            </strong>
-
-            <span>Total Works</span>
-          </div>
-
-          <div>
-            <strong>
-              {completedWorks}
-            </strong>
-
-            <span>Completed</span>
-          </div>
-
-          <div>
-            <strong>
-              {verificationWorks}
-            </strong>
-
-            <span>Under Verification</span>
-          </div>
-
-          <div>
-            <strong>
-              {reportedIssues}
-            </strong>
-
-            <span>Issues Found</span>
-          </div>
-
-        </div>
-
-      </section>
-
-
-      {/* RECENTLY REGISTERED */}
-      <section className="recent-works-section">
-
-        <div className="recent-section-header">
-
-          <div>
-            <span className="section-kicker">
-              RECENTLY REGISTERED
-            </span>
-
-            <h2>
-              Your Recent Works
-            </h2>
-          </div>
-
-          <button
-            className="view-all-button"
-            onClick={() => navigate("/my-submissions")}
-          >
-            View All →
-          </button>
-
-        </div>
-
-
-        {recentWorks.length === 0 ? (
-
-          <div className="empty-dashboard">
-
-            <div className="empty-icon">
-              📋
-            </div>
-
-            <h3>
-              No work registered yet
-            </h3>
-
-            <p>
-              Start by registering your first public work.
-            </p>
-
-            <button
-              onClick={() =>
-                navigate("/register-work")
-              }
-            >
-              + Register New Work
-            </button>
-
-          </div>
-
-        ) : (
-
-          <div className="recent-works-list">
-
-            {recentWorks.map((work) => (
-
-              <div
-                className="recent-work-card"
-                key={work.id}
-              >
-
-                <div className="recent-work-top">
-
-                  <div>
-                    <span className="work-category">
-                      {work.category ||
-                        "Public Infrastructure"}
-                    </span>
-
-                    <h3>
-                      {work.title ||
-                        work.workName ||
-                        "Untitled Work"}
-                    </h3>
-                  </div>
-
-                  <span
-                    className={`work-status ${(
-                      work.status || "Under Verification"
-                    )
-                      .toLowerCase()
-                      .replace(/\s+/g, "-")}`}
-                  >
-                    ⏳{" "}
-                    {work.status ||
-                      "Under Verification"}
-                  </span>
-
-                </div>
-
-
-                <div className="recent-work-details">
-
-                  <div className="work-detail">
-                    <span>Department</span>
-
-                    <strong>
-                      🏢{" "}
-                      {work.department ||
-                        "Not specified"}
-                    </strong>
-                  </div>
-
-                  <div className="work-detail">
-                    <span>Location</span>
-
-                    <strong>
-                      📍{" "}
-                      {work.location ||
-                        "Not specified"}
-                    </strong>
-                  </div>
-
-                  <div className="work-detail">
-                    <span>Estimated Cost</span>
-
-                    <strong>
-                      💰{" "}
-                      {work.cost ||
-                        work.estimatedCost ||
-                        "Not specified"}
-                    </strong>
-                  </div>
-
-                </div>
-
-
-                <div className="recent-work-footer">
-
-                  <button
-                    className="view-work-button"
-                    onClick={() =>
-                      navigate(
-                        `/evidence/${work.id}`
-                      )
-                    }
-                  >
-                    View Work →
-                  </button>
-
-                </div>
-
-              </div>
-
-            ))}
-
-          </div>
-
-        )}
-
-      </section>
-
-    </main>
-  );
+import { useState } from "react";
+
+import Sidebar from "../components/Sidebar";
+import Header from "../components/Header";
+import StatCard from "../components/StatCard";
+import EvidenceCard from "../components/EvidenceCard";
+
+function getStorageData(key, fallback = null) {
+  try {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
-export default Dashboard;
+export default function Dashboard() {
+  const [currentUser] = useState(() =>
+    getStorageData("currentUser", null)
+  );
+
+  const [works] = useState(() =>
+    getStorageData("works", [])
+  );
+
+  const [registeredWork] = useState(() =>
+    getStorageData("registeredWork", null)
+  );
+
+  let userWorks = [];
+
+  if (currentUser?.id) {
+    userWorks = works.filter(
+      (work) =>
+        String(work.userId) === String(currentUser.id)
+    );
+  }
+
+  if (userWorks.length === 0 && registeredWork) {
+    userWorks = [registeredWork];
+  }
+
+  const totalWorks = userWorks.length;
+
+  const completedWorks = userWorks.filter((work) => {
+    const status = work.status?.toLowerCase() || "";
+
+    return status === "completed" || status === "verified";
+  }).length;
+
+  const underVerificationWorks = userWorks.filter((work) => {
+    const status = work.status?.toLowerCase() || "";
+
+    return (
+      status === "" ||
+      status === "pending" ||
+      status === "under verification" ||
+      status === "under review"
+    );
+  }).length;
+
+  const issuesWorks = userWorks.filter((work) => {
+    const status = work.status?.toLowerCase() || "";
+
+    return (
+      status === "issue" ||
+      status === "issues found" ||
+      status === "rejected"
+    );
+  }).length;
+
+  const completionPercentage =
+    totalWorks === 0
+      ? 0
+      : Math.round((completedWorks / totalWorks) * 100);
+
+  const latestWork =
+    userWorks.length > 0
+      ? userWorks[userWorks.length - 1]
+      : null;
+
+  return (
+    <div className="app">
+      <Sidebar />
+
+      <main className="main-content">
+        <Header />
+
+        {/* Statistics */}
+        <section className="stats-grid">
+          <StatCard
+            title="Total Works"
+            value={totalWorks}
+            change={
+              totalWorks === 0
+                ? "No works added yet"
+                : `${totalWorks} work${
+                    totalWorks > 1 ? "s" : ""
+                  } registered`
+            }
+            icon="📋"
+          />
+
+          <StatCard
+            title="Completed"
+            value={completedWorks}
+            change={
+              completedWorks === 0
+                ? "No completed works"
+                : `${completionPercentage}% completed`
+            }
+            icon="✓"
+          />
+
+          <StatCard
+            title="Under Verification"
+            value={underVerificationWorks}
+            change={
+              underVerificationWorks === 0
+                ? "No works under verification"
+                : "Awaiting verification"
+            }
+            icon="⏳"
+          />
+
+          <StatCard
+            title="Reported Issues"
+            value={issuesWorks}
+            change={
+              issuesWorks === 0
+                ? "No issues reported"
+                : "Requires attention"
+            }
+            icon="!"
+          />
+        </section>
+
+        {/* Verification Progress */}
+        <section className="verification-progress">
+          <div className="verification-header">
+            <div>
+              <p className="page-label">
+                VERIFICATION JOURNEY
+              </p>
+
+              <h2>Work Verification Progress</h2>
+            </div>
+
+            <div className="progress-percentage">
+              {completionPercentage}%
+            </div>
+          </div>
+
+          {totalWorks === 0 ? (
+            <div className="empty-state">
+              <h3>No work registered yet</h3>
+
+              <p>
+                Register your first public work to begin
+                the verification process.
+              </p>
+            </div>
+          ) : (
+            <div className="verification-summary">
+              <div>
+                <strong>{totalWorks}</strong>
+                <span>Total Works</span>
+              </div>
+
+              <div>
+                <strong>{completedWorks}</strong>
+                <span>Completed</span>
+              </div>
+
+              <div>
+                <strong>{underVerificationWorks}</strong>
+                <span>Under Verification</span>
+              </div>
+
+              <div>
+                <strong>{issuesWorks}</strong>
+                <span>Issues Found</span>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Latest Work */}
+        {latestWork ? (
+          <section className="registered-work-card">
+            <div className="registered-work-header">
+              <div>
+                <p className="page-label">
+                  RECENTLY REGISTERED
+                </p>
+
+                <h2>
+                  {latestWork.workName ||
+                    latestWork.title ||
+                    "Untitled Work"}
+                </h2>
+              </div>
+
+              <span className="work-status">
+                ⏳ {latestWork.status || "Under Verification"}
+              </span>
+            </div>
+
+            <div className="registered-work-details">
+              <div>
+                <strong>Department</strong>
+                <p>
+                  🏢 {latestWork.department || "Not specified"}
+                </p>
+              </div>
+
+              <div>
+                <strong>Location</strong>
+                <p>
+                  📍{" "}
+                  {latestWork.workLocation ||
+                    latestWork.location ||
+                    "Not specified"}
+                </p>
+              </div>
+
+              <div>
+                <strong>Estimated Cost</strong>
+                <p>
+                  💰 ₹
+                  {latestWork.estimatedCost ||
+                    latestWork.budget ||
+                    "Not specified"}
+                </p>
+              </div>
+            </div>
+
+            <div className="work-description">
+              <strong>Description</strong>
+
+              <p>
+                {latestWork.description ||
+                  "No description provided"}
+              </p>
+            </div>
+
+            {(latestWork.beforeImage ||
+              latestWork.afterImage) && (
+              <div className="registered-evidence">
+                {latestWork.beforeImage && (
+                  <div>
+                    <p>Before Evidence</p>
+
+                    <img
+                      src={latestWork.beforeImage}
+                      alt="Before evidence"
+                    />
+                  </div>
+                )}
+
+                {latestWork.afterImage && (
+                  <div>
+                    <p>After Evidence</p>
+
+                    <img
+                      src={latestWork.afterImage}
+                      alt="After evidence"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {latestWork.gpsLocation && (
+              <div className="registered-gps">
+                <span>📍 GPS Verified</span>
+
+                <span>
+                  {latestWork.gpsLocation.latitude?.toFixed(6)}
+                  {" , "}
+                  {latestWork.gpsLocation.longitude?.toFixed(6)}
+                </span>
+              </div>
+            )}
+          </section>
+        ) : (
+          <section className="registered-work-card empty-work">
+            <p className="page-label">YOUR WORK</p>
+
+            <h2>No work registered yet</h2>
+
+            <p>
+              Your registered public work will appear here
+              after you register it.
+            </p>
+          </section>
+        )}
+
+        <EvidenceCard registeredWork={latestWork} />
+      </main>
+    </div>
+  );
+}
