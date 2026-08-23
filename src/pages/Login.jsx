@@ -1,40 +1,104 @@
 import "../index.css";
+import Logo from "../components/Logo";
+import heroVideo from "../assets/hero.mp4";
 
-function Login() {
+export default function Login() {
+  const navigate = useNavigate();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+
+    // Clear previous error
+    setError("");
+
+    // Check empty fields
+    if (!email || !password) {
+      setError("Please enter your email and password.");
+      return;
+    }
+
+    // Get all registered users
+    const users =
+      JSON.parse(localStorage.getItem("users")) || [];
+
+    // Find user using email
+    const user = users.find(
+      (user) =>
+        user.email.toLowerCase() ===
+        email.trim().toLowerCase()
+    );
+
+    // User does not exist
+    if (!user) {
+      setError(
+        "User not found. Please create an account first."
+      );
+      return;
+    }
+
+    // Password is incorrect
+    if (user.password !== password) {
+      setError(
+        "Incorrect password. Please try again."
+      );
+      return;
+    }
+
+    // Successful login
+    localStorage.setItem("isLoggedIn", "true");
+
+    localStorage.setItem(
+      "currentUser",
+      JSON.stringify(user)
+    );
+
+    localStorage.setItem(
+      "userEmail",
+      user.email
+    );
+
+    // Navigate to dashboard
+    navigate("/dashboard");
+  };
+
   return (
     <div className="login-page">
-      {/* LEFT SIDE */}
-      <div className="login-visual">
-        <div className="login-overlay" />
 
-        <div className="login-brand">
-          <div className="logo">
-            P<span>/</span>W
-          </div>
+      {/* Background Video */}
+      <video
+        className="login-video"
+        autoPlay
+        muted
+        loop
+        playsInline
+      >
+        <source
+          src={heroVideo}
+          type="video/mp4"
+        />
+      </video>
 
-          <p className="logo-subtitle">PROOF OF WORK</p>
+      {/* Dark Overlay */}
+      <div className="login-overlay"></div>
+
+      {/* Background Content */}
+      <div className="login-bg-content">
+        <div className="login-bg-logo">
+          <Logo />
         </div>
 
         <div className="login-message">
           <span className="eyebrow">WELCOME TO</span>
 
-          <h1>
-            PUBLIC <span>WORK.</span>
-            <br />
-            PUBLIC PROOF.
-          </h1>
-
-          <p>
-            Verify public infrastructure through transparent,
-            verifiable and citizen-powered evidence.
-          </p>
-
-          <div className="login-features">
-            <div>● Upload evidence</div>
-            <div>● AI verification</div>
-            <div>● Build public trust</div>
-          </div>
-        </div>
+        <h1>
+          PUBLIC WORK.
+          <br />
+          <span>PUBLIC PROOF.</span>
+        </h1>
       </div>
 
       {/* RIGHT SIDE */}
@@ -81,12 +145,16 @@ function Login() {
                 <span>Remember me</span>
               </label>
 
-              <button
-                type="button"
-                className="forgot-password"
-              >
-                Forgot password?
-              </button>
+            <Link to="/forgot-password">
+              Forgot password?
+            </Link>
+
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="login-error">
+              {error}
             </div>
 
             <button type="submit" className="login-button">

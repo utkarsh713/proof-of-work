@@ -1,676 +1,774 @@
-import { useState } from "react";
-import {
-  FiUser,
-  FiBell,
-  FiShield,
-  FiLock,
-  FiEye,
-  FiEyeOff,
-  FiMoon,
-  FiSun,
-  FiGlobe,
-  FiMapPin,
-  FiCamera,
-  FiChevronRight,
-  FiCheck,
-  FiTrash2,
-  FiSave,
-  FiSmartphone,
-  FiMail,
-  FiDatabase,
-  FiActivity,
-  FiZap,
-} from "react-icons/fi";
-
+import React, { useEffect, useState } from "react";
 import "../index.css";
 
-function Settings() {
+import {
+  User,
+  Bell,
+  Shield,
+  Activity,
+  Camera,
+  Check,
+  Lock,
+  Mail,
+  Smartphone,
+  Eye,
+  Moon,
+  Sun,
+  Monitor,
+  Save,
+  ChevronRight,
+} from "lucide-react";
+
+export default function Settings() {
   const [activeTab, setActiveTab] = useState("profile");
 
-  const [settings, setSettings] = useState({
-    emailNotifications: true,
-    pushNotifications: true,
-    verificationAlerts: true,
-    citizenUpdates: false,
-    locationAccess: true,
-    darkMode: true,
-    twoFactor: false,
+  const [user, setUser] = useState({
+    name: "User",
+    email: "",
+    phone: "",
+    location: "",
   });
 
-  const [showPassword, setShowPassword] = useState(false);
+  const [notifications, setNotifications] = useState({
+    project: true,
+    verification: true,
+    email: false,
+  });
+
+  const [security, setSecurity] = useState({
+    twoFactor: false,
+    loginAlerts: true,
+    visibility: true,
+  });
+
+  const [theme, setTheme] = useState("system");
   const [saved, setSaved] = useState(false);
 
-  const toggleSetting = (name) => {
-    setSettings((prev) => ({
+  // LOAD LOGGED-IN USER
+  useEffect(() => {
+    try {
+      const savedUser =
+        JSON.parse(localStorage.getItem("currentUser")) ||
+        JSON.parse(localStorage.getItem("user"));
+
+      if (savedUser) {
+        setUser({
+          name:
+            savedUser.name ||
+            savedUser.fullName ||
+            savedUser.username ||
+            "User",
+
+          email: savedUser.email || "",
+
+          phone: savedUser.phone || "",
+
+          location:
+            savedUser.location ||
+            savedUser.address ||
+            "",
+        });
+      }
+    } catch (error) {
+      console.error("Error loading user:", error);
+    }
+  }, []);
+
+  // SAVE PROFILE
+  const handleSaveProfile = () => {
+    try {
+      const currentUser =
+        JSON.parse(localStorage.getItem("currentUser")) || {};
+
+      const updatedUser = {
+        ...currentUser,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        location: user.location,
+      };
+
+      localStorage.setItem(
+        "currentUser",
+        JSON.stringify(updatedUser)
+      );
+
+      localStorage.setItem(
+        "user",
+        JSON.stringify(updatedUser)
+      );
+
+      setSaved(true);
+
+      setTimeout(() => {
+        setSaved(false);
+      }, 2500);
+    } catch (error) {
+      console.error("Error saving profile:", error);
+    }
+  };
+
+  const updateNotification = (key) => {
+    setNotifications((prev) => ({
       ...prev,
-      [name]: !prev[name],
+      [key]: !prev[key],
     }));
   };
 
-  const handleSave = () => {
-    setSaved(true);
-
-    setTimeout(() => {
-      setSaved(false);
-    }, 2500);
+  const updateSecurity = (key) => {
+    setSecurity((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
   };
 
-  const tabs = [
+  const menuItems = [
     {
       id: "profile",
       label: "Profile",
-      icon: <FiUser />,
+      icon: User,
     },
     {
       id: "notifications",
       label: "Notifications",
-      icon: <FiBell />,
+      icon: Bell,
     },
     {
       id: "security",
       label: "Security",
-      icon: <FiShield />,
+      icon: Shield,
     },
     {
       id: "preferences",
       label: "Preferences",
-      icon: <FiActivity />,
+      icon: Activity,
     },
   ];
+
+  const Toggle = ({ enabled, onClick }) => (
+    <button
+      type="button"
+      className={`settings-toggle ${
+        enabled ? "enabled" : ""
+      }`}
+      onClick={onClick}
+    >
+      <span />
+    </button>
+  );
 
   return (
     <div className="settings-page">
 
-      {/* HERO */}
+      {/* ================= SIDEBAR ================= */}
 
-      <section className="settings-hero">
+      <aside className="settings-sidebar">
 
-        <div className="settings-hero-content">
+        {/* USER */}
 
-          <div className="settings-eyebrow">
-            <FiZap />
-            PLATFORM CONTROL CENTER
-          </div>
+        <div className="settings-user">
 
-          <h1>
-            Settings &
-            <span> Preferences.</span>
-          </h1>
+          <div className="settings-avatar">
 
-          <p>
-            Manage your Proof-of-Work account, security,
-            notifications and platform experience.
-          </p>
+            {user.name
+              ? user.name.charAt(0).toUpperCase()
+              : "U"}
 
-        </div>
+            <button
+              type="button"
+              className="camera-btn"
+            >
+              <Camera size={16} />
+            </button>
 
-
-        <div className="settings-status-card">
-
-          <div className="settings-status-icon">
-            <FiShield />
           </div>
 
           <div>
-            <span>ACCOUNT STATUS</span>
-            <strong>Protected</strong>
-          </div>
 
-          <div className="status-pulse"></div>
+            <h3>{user.name}</h3>
+
+            <p>Citizen Account</p>
+
+          </div>
 
         </div>
 
-      </section>
+        <div className="settings-divider" />
 
+        {/* MENU */}
 
-      <div className="settings-layout">
+        <nav className="settings-nav">
 
-        {/* SIDEBAR */}
+          {menuItems.map((item) => {
 
-        <aside className="settings-navigation">
+            const Icon = item.icon;
 
-          <div className="settings-user-preview">
-
-            <div className="settings-avatar">
-              A
-              <button>
-                <FiCamera />
-              </button>
-            </div>
-
-            <div>
-              <h3>Anjali Yadav</h3>
-              <p>Citizen Account</p>
-            </div>
-
-          </div>
-
-
-          <div className="settings-tabs">
-
-            {tabs.map((tab) => (
-
+            return (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`settings-tab ${
-                  activeTab === tab.id ? "active" : ""
+                key={item.id}
+                type="button"
+                className={`settings-nav-item ${
+                  activeTab === item.id
+                    ? "active"
+                    : ""
                 }`}
+                onClick={() =>
+                  setActiveTab(item.id)
+                }
               >
 
-                <span className="settings-tab-icon">
-                  {tab.icon}
+                <Icon size={22} />
+
+                <span>
+                  {item.label}
                 </span>
 
-                {tab.label}
-
-                {activeTab === tab.id && (
-                  <FiChevronRight className="tab-arrow" />
+                {activeTab === item.id && (
+                  <ChevronRight
+                    className="nav-arrow"
+                    size={20}
+                  />
                 )}
 
               </button>
+            );
+          })}
 
-            ))}
+        </nav>
 
+        {/* BOTTOM */}
+
+        <div className="settings-secured">
+
+          <div>
+            <Lock size={16} />
+            <strong>Data secured</strong>
           </div>
-
-
-          <div className="settings-sidebar-bottom">
-
-            <div>
-              <FiDatabase />
-              <span>
-                Data secured
-              </span>
-            </div>
-
-            <small>
-              Proof-of-Work Security System
-            </small>
-
-          </div>
-
-        </aside>
-
-
-        {/* CONTENT */}
-
-        <main className="settings-content">
-
-          {/* PROFILE */}
-
-          {activeTab === "profile" && (
-
-            <div className="settings-panel">
-
-              <div className="settings-panel-header">
-
-                <div>
-                  <p className="section-label">
-                    PERSONAL INFORMATION
-                  </p>
-
-                  <h2>
-                    Profile Settings
-                  </h2>
-
-                  <p>
-                    Manage your account information and identity.
-                  </p>
-                </div>
-
-                <div className="panel-header-icon">
-                  <FiUser />
-                </div>
-
-              </div>
-
-
-              <div className="settings-form-grid">
-
-                <div className="settings-input-group">
-
-                  <label>
-                    Full Name
-                  </label>
-
-                  <div className="settings-input">
-                    <FiUser />
-
-                    <input
-                      type="text"
-                      defaultValue="Anjali Yadav"
-                    />
-                  </div>
-
-                </div>
-
-
-                <div className="settings-input-group">
-
-                  <label>
-                    Email Address
-                  </label>
-
-                  <div className="settings-input">
-                    <FiMail />
-
-                    <input
-                      type="email"
-                      defaultValue="anjali@example.com"
-                    />
-                  </div>
-
-                </div>
-
-
-                <div className="settings-input-group">
-
-                  <label>
-                    Phone Number
-                  </label>
-
-                  <div className="settings-input">
-                    <FiSmartphone />
-
-                    <input
-                      type="text"
-                      placeholder="+91 00000 00000"
-                    />
-                  </div>
-
-                </div>
-
-
-                <div className="settings-input-group">
-
-                  <label>
-                    Primary Location
-                  </label>
-
-                  <div className="settings-input">
-                    <FiMapPin />
-
-                    <input
-                      type="text"
-                      placeholder="Delhi, India"
-                    />
-                  </div>
-
-                </div>
-
-              </div>
-
-
-              <div className="settings-save-row">
-
-                <div>
-                  <FiCheck />
-                  Changes are saved securely
-                </div>
-
-                <button
-                  className="settings-save-btn"
-                  onClick={handleSave}
-                >
-                  <FiSave />
-
-                  {saved
-                    ? "SAVED SUCCESSFULLY"
-                    : "SAVE CHANGES"}
-                </button>
-
-              </div>
-
-            </div>
-
-          )}
-
-
-          {/* NOTIFICATIONS */}
-
-          {activeTab === "notifications" && (
-
-            <div className="settings-panel">
-
-              <div className="settings-panel-header">
-
-                <div>
-                  <p className="section-label">
-                    NOTIFICATION CENTER
-                  </p>
-
-                  <h2>
-                    Notification Preferences
-                  </h2>
-
-                  <p>
-                    Control how you receive important updates.
-                  </p>
-                </div>
-
-                <div className="panel-header-icon">
-                  <FiBell />
-                </div>
-
-              </div>
-
-
-              <div className="settings-options-list">
-
-                <SettingToggle
-                  icon={<FiMail />}
-                  title="Email Notifications"
-                  description="Receive important updates through email."
-                  enabled={settings.emailNotifications}
-                  onToggle={() =>
-                    toggleSetting("emailNotifications")
-                  }
-                />
-
-                <SettingToggle
-                  icon={<FiSmartphone />}
-                  title="Push Notifications"
-                  description="Receive instant platform alerts."
-                  enabled={settings.pushNotifications}
-                  onToggle={() =>
-                    toggleSetting("pushNotifications")
-                  }
-                />
-
-                <SettingToggle
-                  icon={<FiCheck />}
-                  title="Verification Updates"
-                  description="Get notified when work verification changes."
-                  enabled={settings.verificationAlerts}
-                  onToggle={() =>
-                    toggleSetting("verificationAlerts")
-                  }
-                />
-
-                <SettingToggle
-                  icon={<FiUser />}
-                  title="Citizen Activity"
-                  description="Receive updates about citizen verification."
-                  enabled={settings.citizenUpdates}
-                  onToggle={() =>
-                    toggleSetting("citizenUpdates")
-                  }
-                />
-
-              </div>
-
-            </div>
-
-          )}
-
-
-          {/* SECURITY */}
-
-          {activeTab === "security" && (
-
-            <div className="settings-panel">
-
-              <div className="settings-panel-header">
-
-                <div>
-                  <p className="section-label">
-                    ACCOUNT SECURITY
-                  </p>
-
-                  <h2>
-                    Security & Privacy
-                  </h2>
-
-                  <p>
-                    Protect your account and manage access.
-                  </p>
-                </div>
-
-                <div className="panel-header-icon security-icon">
-                  <FiShield />
-                </div>
-
-              </div>
-
-
-              <div className="security-card">
-
-                <div className="security-card-icon">
-                  <FiLock />
-                </div>
-
-                <div className="security-card-content">
-
-                  <h3>
-                    Change Password
-                  </h3>
-
-                  <p>
-                    Use a strong password to keep your account secure.
-                  </p>
-
-                  <div className="password-settings-input">
-
-                    <input
-                      type={
-                        showPassword
-                          ? "text"
-                          : "password"
-                      }
-                      placeholder="Enter new password"
-                    />
-
-                    <button
-                      onClick={() =>
-                        setShowPassword(!showPassword)
-                      }
-                    >
-                      {showPassword
-                        ? <FiEyeOff />
-                        : <FiEye />
-                      }
-                    </button>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-
-              <div className="settings-options-list">
-
-                <SettingToggle
-                  icon={<FiShield />}
-                  title="Two-Factor Authentication"
-                  description="Add an additional security layer."
-                  enabled={settings.twoFactor}
-                  onToggle={() =>
-                    toggleSetting("twoFactor")
-                  }
-                />
-
-                <SettingToggle
-                  icon={<FiMapPin />}
-                  title="Location Access"
-                  description="Allow GPS verification for evidence."
-                  enabled={settings.locationAccess}
-                  onToggle={() =>
-                    toggleSetting("locationAccess")
-                  }
-                />
-
-              </div>
-
-
-              <div className="danger-zone">
-
-                <div>
-
-                  <span>
-                    <FiTrash2 />
-                    DANGER ZONE
-                  </span>
-
-                  <h3>
-                    Delete Account
-                  </h3>
-
-                  <p>
-                    Permanently remove your account and stored data.
-                  </p>
-
-                </div>
-
-                <button>
-                  DELETE ACCOUNT
-                </button>
-
-              </div>
-
-            </div>
-
-          )}
-
-
-          {/* PREFERENCES */}
-
-          {activeTab === "preferences" && (
-
-            <div className="settings-panel">
-
-              <div className="settings-panel-header">
-
-                <div>
-                  <p className="section-label">
-                    PLATFORM EXPERIENCE
-                  </p>
-
-                  <h2>
-                    Preferences
-                  </h2>
-
-                  <p>
-                    Customize how Proof-of-Work works for you.
-                  </p>
-                </div>
-
-                <div className="panel-header-icon">
-                  <FiActivity />
-                </div>
-
-              </div>
-
-
-              <div className="settings-options-list">
-
-                <SettingToggle
-                  icon={
-                    settings.darkMode
-                      ? <FiMoon />
-                      : <FiSun />
-                  }
-                  title="Dark Interface"
-                  description="Use the cinematic dark Proof-of-Work theme."
-                  enabled={settings.darkMode}
-                  onToggle={() =>
-                    toggleSetting("darkMode")
-                  }
-                />
-
-                <div className="setting-option language-option">
-
-                  <div className="setting-option-left">
-
-                    <div className="setting-option-icon">
-                      <FiGlobe />
-                    </div>
-
-                    <div>
-                      <h3>
-                        Platform Language
-                      </h3>
-
-                      <p>
-                        Select your preferred language.
-                      </p>
-                    </div>
-
-                  </div>
-
-                  <select>
-                    <option>
-                      English
-                    </option>
-
-                    <option>
-                      Hindi
-                    </option>
-
-                  </select>
-
-                </div>
-
-              </div>
-
-            </div>
-
-          )}
-
-        </main>
-
-      </div>
-
-    </div>
-  );
-}
-
-
-function SettingToggle({
-  icon,
-  title,
-  description,
-  enabled,
-  onToggle,
-}) {
-  return (
-
-    <div className="setting-option">
-
-      <div className="setting-option-left">
-
-        <div className="setting-option-icon">
-          {icon}
-        </div>
-
-        <div>
-          <h3>
-            {title}
-          </h3>
 
           <p>
-            {description}
+            Proof-of-Work Security System
           </p>
+
         </div>
 
-      </div>
+      </aside>
 
 
-      <button
-        className={`settings-toggle ${
-          enabled ? "enabled" : ""
-        }`}
-        onClick={onToggle}
-      >
+      {/* ================= MAIN PANEL ================= */}
 
-        <span></span>
+      <main className="settings-panel">
 
-      </button>
+
+        {/* =====================================================
+            PROFILE
+        ===================================================== */}
+
+        {activeTab === "profile" && (
+
+          <section className="settings-content">
+
+            <div className="settings-header">
+
+              <span>
+                PERSONAL INFORMATION
+              </span>
+
+              <h1>
+                Profile Settings
+              </h1>
+
+              <p>
+                Manage your account information and identity.
+              </p>
+
+            </div>
+
+
+            <div className="profile-form">
+
+              <div className="settings-field">
+
+                <label>
+                  Full Name
+                </label>
+
+                <input
+                  type="text"
+                  value={user.name}
+                  onChange={(e) =>
+                    setUser({
+                      ...user,
+                      name: e.target.value,
+                    })
+                  }
+                  placeholder="Enter your name"
+                />
+
+              </div>
+
+
+              <div className="settings-field">
+
+                <label>
+                  Email Address
+                </label>
+
+                <input
+                  type="email"
+                  value={user.email}
+                  onChange={(e) =>
+                    setUser({
+                      ...user,
+                      email: e.target.value,
+                    })
+                  }
+                  placeholder="Enter your email"
+                />
+
+              </div>
+
+
+              <div className="settings-field">
+
+                <label>
+                  Phone Number
+                </label>
+
+                <input
+                  type="text"
+                  value={user.phone}
+                  onChange={(e) =>
+                    setUser({
+                      ...user,
+                      phone: e.target.value,
+                    })
+                  }
+                  placeholder="+91 00000 00000"
+                />
+
+              </div>
+
+
+              <div className="settings-field">
+
+                <label>
+                  Primary Location
+                </label>
+
+                <input
+                  type="text"
+                  value={user.location}
+                  onChange={(e) =>
+                    setUser({
+                      ...user,
+                      location: e.target.value,
+                    })
+                  }
+                  placeholder="Enter your location"
+                />
+
+              </div>
+
+            </div>
+
+
+            <div className="settings-footer">
+
+              <p>
+
+                <Check size={18} />
+
+                {saved
+                  ? "Changes saved successfully"
+                  : "Changes are saved securely"}
+
+              </p>
+
+
+              <button
+                className="save-settings-btn"
+                onClick={handleSaveProfile}
+              >
+
+                <Save size={16} />
+
+                SAVE CHANGES
+
+              </button>
+
+            </div>
+
+          </section>
+
+        )}
+
+
+        {/* =====================================================
+            NOTIFICATIONS
+        ===================================================== */}
+
+        {activeTab === "notifications" && (
+
+          <section className="settings-content">
+
+            <div className="settings-header center-header">
+
+              <div className="big-settings-icon">
+                <Bell size={42} />
+              </div>
+
+              <h1>
+                Notification Settings
+              </h1>
+
+              <p>
+                Choose what updates you want to receive.
+              </p>
+
+            </div>
+
+
+            <div className="settings-options">
+
+              <div className="toggle-row">
+
+                <div className="toggle-left">
+
+                  <div className="toggle-icon">
+                    <Activity size={22} />
+                  </div>
+
+                  <div>
+
+                    <h3>
+                      Project Updates
+                    </h3>
+
+                    <p>
+                      Get updates about your public work projects.
+                    </p>
+
+                  </div>
+
+                </div>
+
+                <Toggle
+                  enabled={notifications.project}
+                  onClick={() =>
+                    updateNotification("project")
+                  }
+                />
+
+              </div>
+
+
+              <div className="toggle-row">
+
+                <div className="toggle-left">
+
+                  <div className="toggle-icon">
+                    <Check size={22} />
+                  </div>
+
+                  <div>
+
+                    <h3>
+                      Verification Updates
+                    </h3>
+
+                    <p>
+                      Receive AI and verification status updates.
+                    </p>
+
+                  </div>
+
+                </div>
+
+                <Toggle
+                  enabled={notifications.verification}
+                  onClick={() =>
+                    updateNotification("verification")
+                  }
+                />
+
+              </div>
+
+
+              <div className="toggle-row">
+
+                <div className="toggle-left">
+
+                  <div className="toggle-icon">
+                    <Mail size={22} />
+                  </div>
+
+                  <div>
+
+                    <h3>
+                      Email Notifications
+                    </h3>
+
+                    <p>
+                      Receive important updates by email.
+                    </p>
+
+                  </div>
+
+                </div>
+
+                <Toggle
+                  enabled={notifications.email}
+                  onClick={() =>
+                    updateNotification("email")
+                  }
+                />
+
+              </div>
+
+            </div>
+
+          </section>
+
+        )}
+
+
+        {/* =====================================================
+            SECURITY
+        ===================================================== */}
+
+        {activeTab === "security" && (
+
+          <section className="settings-content">
+
+            <div className="settings-header center-header">
+
+              <div className="big-settings-icon">
+                <Shield size={42} />
+              </div>
+
+              <h1>
+                Security Settings
+              </h1>
+
+              <p>
+                Manage your account security preferences.
+              </p>
+
+            </div>
+
+
+            <div className="settings-options">
+
+              <div className="toggle-row">
+
+                <div className="toggle-left">
+
+                  <div className="toggle-icon">
+                    <Smartphone size={22} />
+                  </div>
+
+                  <div>
+
+                    <h3>
+                      Two-Factor Authentication
+                    </h3>
+
+                    <p>
+                      Add an extra layer of security to your account.
+                    </p>
+
+                  </div>
+
+                </div>
+
+                <Toggle
+                  enabled={security.twoFactor}
+                  onClick={() =>
+                    updateSecurity("twoFactor")
+                  }
+                />
+
+              </div>
+
+
+              <div className="toggle-row">
+
+                <div className="toggle-left">
+
+                  <div className="toggle-icon">
+                    <Bell size={22} />
+                  </div>
+
+                  <div>
+
+                    <h3>
+                      Login Alerts
+                    </h3>
+
+                    <p>
+                      Get notified when a new device signs in.
+                    </p>
+
+                  </div>
+
+                </div>
+
+                <Toggle
+                  enabled={security.loginAlerts}
+                  onClick={() =>
+                    updateSecurity("loginAlerts")
+                  }
+                />
+
+              </div>
+
+
+              <div className="toggle-row">
+
+                <div className="toggle-left">
+
+                  <div className="toggle-icon">
+                    <Eye size={22} />
+                  </div>
+
+                  <div>
+
+                    <h3>
+                      Account Visibility
+                    </h3>
+
+                    <p>
+                      Control how your profile is visible.
+                    </p>
+
+                  </div>
+
+                </div>
+
+                <Toggle
+                  enabled={security.visibility}
+                  onClick={() =>
+                    updateSecurity("visibility")
+                  }
+                />
+
+              </div>
+
+            </div>
+
+          </section>
+
+        )}
+
+
+        {/* =====================================================
+            PREFERENCES
+        ===================================================== */}
+
+        {activeTab === "preferences" && (
+
+          <section className="settings-content">
+
+            <div className="settings-header center-header">
+
+              <div className="big-settings-icon">
+                <Activity size={42} />
+              </div>
+
+              <h1>
+                Preferences
+              </h1>
+
+              <p>
+                Customize your Proof-of-Work experience.
+              </p>
+
+            </div>
+
+
+            <div className="preference-theme">
+
+              <div>
+
+                <h3>
+                  Appearance
+                </h3>
+
+                <p>
+                  Choose how Proof-of-Work looks for you.
+                </p>
+
+              </div>
+
+
+              <div className="theme-options">
+
+                <button
+                  type="button"
+                  className={`theme-btn ${
+                    theme === "light"
+                      ? "active"
+                      : ""
+                  }`}
+                  onClick={() =>
+                    setTheme("light")
+                  }
+                >
+
+                  <Sun size={18} />
+
+                  Light
+
+                </button>
+
+
+                <button
+                  type="button"
+                  className={`theme-btn ${
+                    theme === "dark"
+                      ? "active"
+                      : ""
+                  }`}
+                  onClick={() =>
+                    setTheme("dark")
+                  }
+                >
+
+                  <Moon size={18} />
+
+                  Dark
+
+                </button>
+
+
+                <button
+                  type="button"
+                  className={`theme-btn ${
+                    theme === "system"
+                      ? "active"
+                      : ""
+                  }`}
+                  onClick={() =>
+                    setTheme("system")
+                  }
+                >
+
+                  <Monitor size={18} />
+
+                  System
+
+                </button>
+
+              </div>
+
+            </div>
+
+          </section>
+
+        )}
+
+      </main>
 
     </div>
-
   );
 }
-
-export default Settings;

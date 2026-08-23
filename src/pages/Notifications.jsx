@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import {
   FiBell,
   FiCpu,
@@ -13,6 +15,8 @@ import {
 } from "react-icons/fi";
 
 function Notifications() {
+  const navigate = useNavigate();
+
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -66,6 +70,7 @@ function Notifications() {
     },
   ]);
 
+  // Mark one notification as read
   const markAsRead = (id) => {
     setNotifications((current) =>
       current.map((notification) =>
@@ -76,6 +81,7 @@ function Notifications() {
     );
   };
 
+  // Mark all notifications as read
   const markAllAsRead = () => {
     setNotifications((current) =>
       current.map((notification) => ({
@@ -85,6 +91,7 @@ function Notifications() {
     );
   };
 
+  // Remove notification
   const clearNotification = (id) => {
     setNotifications((current) =>
       current.filter(
@@ -156,9 +163,12 @@ function Notifications() {
             type="button"
             onClick={markAllAsRead}
             className="mark-all-button"
+            disabled={unreadCount === 0}
           >
             <FiCheck />
-            Mark all as read
+            {unreadCount === 0
+              ? "All caught up"
+              : "Mark all as read"}
           </button>
 
         </div>
@@ -198,6 +208,7 @@ function Notifications() {
                   }`}
                 >
 
+                  {/* ICON */}
                   <div
                     className={`notification-icon ${notification.type}`}
                   >
@@ -205,6 +216,7 @@ function Notifications() {
                   </div>
 
 
+                  {/* CONTENT */}
                   <div className="notification-content">
 
                     <div className="notification-title-row">
@@ -230,6 +242,7 @@ function Notifications() {
                   </div>
 
 
+                  {/* ACTION BUTTONS */}
                   <div className="notification-buttons">
 
                     {notification.unread && (
@@ -278,7 +291,7 @@ function Notifications() {
             <FiSettings />
           </div>
 
-          <div>
+          <div className="notification-settings-content">
             <h3>
               Notification Preferences
             </h3>
@@ -288,7 +301,13 @@ function Notifications() {
             </p>
           </div>
 
-          <button type="button">
+
+          {/* WORKING SETTINGS BUTTON */}
+          <button
+            type="button"
+            className="manage-settings-btn"
+            onClick={() => navigate("/settings")}
+          >
             Manage Settings
             <FiArrowRight />
           </button>

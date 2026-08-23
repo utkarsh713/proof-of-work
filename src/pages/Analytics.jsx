@@ -1,5 +1,4 @@
-import React from "react";
-
+import React, { useEffect, useMemo, useState } from "react";
 import {
   FiTrendingUp,
   FiCheckCircle,
@@ -9,31 +8,200 @@ import {
   FiActivity,
   FiMapPin,
   FiArrowUpRight,
+  FiDatabase,
 } from "react-icons/fi";
 
 import "../index.css";
 
 export default function Analytics() {
-  const monthlyData = [
-    { month: "Mar", value: 45 },
-    { month: "Apr", value: 62 },
-    { month: "May", value: 55 },
-    { month: "Jun", value: 78 },
-    { month: "Jul", value: 68 },
-    { month: "Aug", value: 92 },
-  ];
+  const [submissions, setSubmissions] = useState([]);
 
-  const maxValue = 100;
+  useEffect(() => {
+    const loadSubmissions = () => {
+      try {
+        const stored =
+          JSON.parse(
+            localStorage.getItem("proofOfWorkSubmissions")
+          ) || [];
+
+        setSubmissions(stored);
+      } catch (error) {
+        console.error("Error loading submissions:", error);
+        setSubmissions([]);
+      }
+    };
+
+    loadSubmissions();
+
+    window.addEventListener("storage", loadSubmissions);
+
+    return () => {
+      window.removeEventListener("storage", loadSubmissions);
+    };
+  }, []);
+
+  /* =========================
+     REAL DATA CALCULATIONS
+  ========================= */
+
+  const analytics = useMemo(() => {
+    const total = submissions.length;
+
+    const verified = submissions.filter(
+      (item) => item.status === "Verified"
+    ).length;
+
+    const underReview = submissions.filter(
+      (item) =>
+        item.status === "Under Verification" ||
+        item.status === "Under Review"
+    ).length;
+
+    const issues = submissions.filter(
+      (item) => item.status === "Issues Found"
+    ).length;
+
+    const verificationRate =
+      total > 0
+        ? Math.round((verified / total) * 100)
+        : 0;
+
+    const transparencyScore =
+      total === 0
+        ? 0
+        : Math.min(
+            100,
+            Math.round(
+              (verified / total) * 100 +
+                (underReview / total) * 70
+            )
+          );
+
+    return {
+      total,
+      verified,
+      underReview,
+      issues,
+      verificationRate,
+      transparencyScore,
+    };
+  }, [submissions]);
+
+  /* =========================
+     MONTHLY DATA
+  ========================= */
+
+  const monthlyData = useMemo(() => {
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
+    const currentMonth = new Date().getMonth();
+
+    const lastSixMonths = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const monthIndex =
+        (currentMonth - i + 12) % 12;
+
+      lastSixMonths.push({
+        month: months[monthIndex],
+        value: 0,
+        monthIndex,
+      });
+    }
+
+    submissions.forEach((submission) => {
+      if (!submission.date) return;
+
+      const submissionMonth = new Date(
+        submission.date
+      ).getMonth();
+
+      const matchedMonth =
+        lastSixMonths.find(
+          (item) =>
+            item.monthIndex === submissionMonth
+        );
+
+      if (matchedMonth) {
+        matchedMonth.value += 1;
+      }
+    });
+
+    return lastSixMonths;
+  }, [submissions]);
+
+  const maxValue = Math.max(
+    ...monthlyData.map((item) => item.value),
+    1
+  );
+
+  /* =========================
+     LOCATION DATA
+  ========================= */
+
+  const locations = useMemo(() => {
+    const locationMap = {};
+
+    submissions.forEach((submission) => {
+      const location =
+        submission.location || "Unknown";
+
+      if (!locationMap[location]) {
+        locationMap[location] = 0;
+      }
+
+      locationMap[location] += 1;
+    });
+
+    return Object.entries(locationMap)
+      .map(([name, count]) => ({
+        name,
+        count,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+  }, [submissions]);
+
+  const getScoreStatus = () => {
+    const score = analytics.transparencyScore;
+
+    if (score >= 80) return "Excellent Transparency";
+    if (score >= 60) return "Good Transparency";
+    if (score > 0) return "Needs Improvement";
+
+    return "No Data Yet";
+  };
 
   return (
     <div className="analytics-page">
+
+      {/* BACKGROUND DECORATION */}
+
+      <div className="analytics-grid-bg"></div>
+      <div className="analytics-glow analytics-glow-one"></div>
+      <div className="analytics-glow analytics-glow-two"></div>
 
       {/* HERO */}
 
       <section className="analytics-hero">
 
-        <div>
+        <div className="analytics-hero-content">
+
           <p className="analytics-label">
+            <span></span>
             PLATFORM INTELLIGENCE
           </p>
 
@@ -43,9 +211,11 @@ export default function Analytics() {
           </h1>
 
           <p className="analytics-description">
-            Track public works, verification performance and
-            transparency across every stage of the platform.
+            Track your real public works, verification
+            performance and transparency across the
+            Proof-of-Work platform.
           </p>
+
         </div>
 
         <div className="analytics-live">
@@ -67,133 +237,187 @@ export default function Analytics() {
 
           <div>
             <span>TOTAL ACTIVITY</span>
-            <h2>248</h2>
+
+            <h2>{analytics.total}</h2>
 
             <p>
               <FiTrendingUp />
-              +18.2% this month
+              Registered works
             </p>
           </div>
         </div>
 
 
         <div className="analytics-stat-card">
+
           <div className="analytics-stat-icon green">
             <FiCheckCircle />
           </div>
 
           <div>
             <span>VERIFICATION RATE</span>
-            <h2>94%</h2>
+
+            <h2>
+              {analytics.verificationRate}%
+            </h2>
 
             <p>
               <FiTrendingUp />
-              +6.4% improvement
+              {analytics.verified} verified
             </p>
           </div>
+
         </div>
 
 
         <div className="analytics-stat-card">
+
           <div className="analytics-stat-icon yellow">
             <FiClock />
           </div>
 
           <div>
-            <span>AVG. REVIEW TIME</span>
-            <h2>2.4d</h2>
+            <span>UNDER REVIEW</span>
+
+            <h2>
+              {analytics.underReview}
+            </h2>
 
             <p className="analytics-neutral">
-              Faster than last month
+              Awaiting verification
             </p>
           </div>
+
         </div>
 
 
         <div className="analytics-stat-card">
+
           <div className="analytics-stat-icon red">
             <FiAlertTriangle />
           </div>
 
           <div>
             <span>ISSUES DETECTED</span>
-            <h2>25</h2>
+
+            <h2>
+              {analytics.issues}
+            </h2>
 
             <p className="analytics-negative">
               Requires attention
             </p>
           </div>
+
         </div>
 
       </section>
 
 
-      {/* ANALYTICS GRID */}
+      {/* MAIN GRID */}
 
       <section className="analytics-grid">
 
-
-        {/* PERFORMANCE CHART */}
+        {/* CHART */}
 
         <div className="analytics-chart-card">
 
           <div className="analytics-card-header">
 
             <div>
+
               <p className="section-label">
                 PERFORMANCE
               </p>
 
               <h2>
-                Verification Activity
+                Submission Activity
               </h2>
+
             </div>
 
-            <button className="analytics-filter">
-              2026 <FiArrowUpRight />
-            </button>
+            <div className="analytics-filter">
+              2026
+              <FiArrowUpRight />
+            </div>
 
           </div>
 
 
-          <div className="bar-chart">
+          {analytics.total === 0 ? (
 
-            {monthlyData.map((item) => (
+            <div className="analytics-empty-chart">
 
-              <div
-                className="bar-item"
-                key={item.month}
+              <FiDatabase />
+
+              <h3>No activity yet</h3>
+
+              <p>
+                Register your first public work to
+                start generating analytics.
+              </p>
+
+              <button
+                onClick={() => {
+                  window.location.href =
+                    "/register-work";
+                }}
               >
+                Register Work
+                <FiArrowUpRight />
+              </button>
 
-                <div className="bar-wrapper">
+            </div>
 
-                  <div
-                    className="analytics-bar"
-                    style={{
-                      height: `${(item.value / maxValue) * 100}%`
-                    }}
-                  >
-                    <span>
-                      {item.value}
-                    </span>
+          ) : (
+
+            <div className="bar-chart">
+
+              {monthlyData.map((item, index) => (
+
+                <div
+                  className="bar-item"
+                  key={`${item.month}-${index}`}
+                >
+
+                  <div className="bar-wrapper">
+
+                    <div
+                      className="analytics-bar"
+                      style={{
+                        height: `${
+                          (item.value / maxValue) * 100
+                        }%`,
+                        animationDelay: `${
+                          index * 0.1
+                        }s`,
+                      }}
+                    >
+
+                      <span>
+                        {item.value}
+                      </span>
+
+                    </div>
+
                   </div>
+
+                  <span className="bar-label">
+                    {item.month}
+                  </span>
 
                 </div>
 
-                <span className="bar-label">
-                  {item.month}
-                </span>
+              ))}
 
-              </div>
+            </div>
 
-            ))}
-
-          </div>
+          )}
 
         </div>
 
 
-        {/* TRANSPARENCY SCORE */}
+        {/* SCORE */}
 
         <div className="analytics-score-card">
 
@@ -206,12 +430,24 @@ export default function Analytics() {
           </h2>
 
 
-          <div className="analytics-score-ring">
+          <div
+            className="analytics-score-ring"
+            style={{
+              background: `conic-gradient(
+                #b8f52a ${
+                  analytics.transparencyScore * 3.6
+                }deg,
+                #1b2922 ${
+                  analytics.transparencyScore * 3.6
+                }deg
+              )`,
+            }}
+          >
 
             <div className="analytics-score-inner">
 
               <strong>
-                94
+                {analytics.transparencyScore}
               </strong>
 
               <span>
@@ -224,14 +460,18 @@ export default function Analytics() {
 
 
           <div className="analytics-score-status">
+
             <FiCheckCircle />
-            Excellent Transparency
+
+            {getScoreStatus()}
+
           </div>
 
 
           <p className="analytics-score-text">
-            Platform activity and evidence verification
-            are performing above the expected benchmark.
+            This score is calculated from your
+            registered works and their current
+            verification status.
           </p>
 
         </div>
@@ -244,13 +484,14 @@ export default function Analytics() {
       <section className="analytics-bottom-grid">
 
 
-        {/* VERIFICATION BREAKDOWN */}
+        {/* STATUS BREAKDOWN */}
 
         <div className="analytics-breakdown-card">
 
           <div className="analytics-card-header">
 
             <div>
+
               <p className="section-label">
                 VERIFICATION
               </p>
@@ -258,6 +499,7 @@ export default function Analytics() {
               <h2>
                 Work Status
               </h2>
+
             </div>
 
             <FiBarChart2 className="card-header-icon" />
@@ -269,18 +511,33 @@ export default function Analytics() {
 
             <div className="status-row">
 
-              <div>
+              <div className="status-name">
+
                 <span className="status-dot completed"></span>
+
                 Verified
+
               </div>
 
-              <strong>156</strong>
+              <strong>
+                {analytics.verified}
+              </strong>
 
               <div className="status-progress">
+
                 <span
-                  style={{ width: "75%" }}
                   className="completed"
+                  style={{
+                    width: `${
+                      analytics.total
+                        ? (analytics.verified /
+                            analytics.total) *
+                          100
+                        : 0
+                    }%`,
+                  }}
                 ></span>
+
               </div>
 
             </div>
@@ -288,18 +545,33 @@ export default function Analytics() {
 
             <div className="status-row">
 
-              <div>
+              <div className="status-name">
+
                 <span className="status-dot pending"></span>
+
                 Under Review
+
               </div>
 
-              <strong>67</strong>
+              <strong>
+                {analytics.underReview}
+              </strong>
 
               <div className="status-progress">
+
                 <span
-                  style={{ width: "48%" }}
                   className="pending"
+                  style={{
+                    width: `${
+                      analytics.total
+                        ? (analytics.underReview /
+                            analytics.total) *
+                          100
+                        : 0
+                    }%`,
+                  }}
                 ></span>
+
               </div>
 
             </div>
@@ -307,18 +579,33 @@ export default function Analytics() {
 
             <div className="status-row">
 
-              <div>
+              <div className="status-name">
+
                 <span className="status-dot issue"></span>
-                Reported Issues
+
+                Issues Found
+
               </div>
 
-              <strong>25</strong>
+              <strong>
+                {analytics.issues}
+              </strong>
 
               <div className="status-progress">
+
                 <span
-                  style={{ width: "22%" }}
                   className="issue"
+                  style={{
+                    width: `${
+                      analytics.total
+                        ? (analytics.issues /
+                            analytics.total) *
+                          100
+                        : 0
+                    }%`,
+                  }}
                 ></span>
+
               </div>
 
             </div>
@@ -328,13 +615,14 @@ export default function Analytics() {
         </div>
 
 
-        {/* TOP LOCATIONS */}
+        {/* LOCATIONS */}
 
         <div className="analytics-location-card">
 
           <div className="analytics-card-header">
 
             <div>
+
               <p className="section-label">
                 GEOGRAPHIC DATA
               </p>
@@ -342,6 +630,7 @@ export default function Analytics() {
               <h2>
                 Active Locations
               </h2>
+
             </div>
 
             <FiMapPin className="card-header-icon" />
@@ -351,40 +640,58 @@ export default function Analytics() {
 
           <div className="location-list">
 
-            <div className="location-item">
-              <div className="location-rank">01</div>
+            {locations.length > 0 ? (
 
-              <div className="location-info">
-                <strong>Delhi</strong>
-                <span>78 active projects</span>
+              locations.map(
+                (location, index) => (
+
+                  <div
+                    className="location-item"
+                    key={location.name}
+                  >
+
+                    <div className="location-rank">
+                      {String(index + 1).padStart(
+                        2,
+                        "0"
+                      )}
+                    </div>
+
+                    <div className="location-info">
+
+                      <strong>
+                        {location.name}
+                      </strong>
+
+                      <span>
+                        {location.count} active{" "}
+                        {location.count === 1
+                          ? "project"
+                          : "projects"}
+                      </span>
+
+                    </div>
+
+                    <FiArrowUpRight />
+
+                  </div>
+
+                )
+              )
+
+            ) : (
+
+              <div className="analytics-empty-location">
+
+                <FiMapPin />
+
+                <p>
+                  No locations available yet.
+                </p>
+
               </div>
 
-              <FiArrowUpRight />
-            </div>
-
-
-            <div className="location-item">
-              <div className="location-rank">02</div>
-
-              <div className="location-info">
-                <strong>Noida</strong>
-                <span>54 active projects</span>
-              </div>
-
-              <FiArrowUpRight />
-            </div>
-
-
-            <div className="location-item">
-              <div className="location-rank">03</div>
-
-              <div className="location-info">
-                <strong>Gurugram</strong>
-                <span>42 active projects</span>
-              </div>
-
-              <FiArrowUpRight />
-            </div>
+            )}
 
           </div>
 

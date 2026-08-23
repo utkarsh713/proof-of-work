@@ -1,243 +1,600 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Clock3,
+  FileText,
+  MapPin,
+  Plus,
+  Search,
+  AlertTriangle,
+  Building2,
+  CalendarDays,
+  ClipboardCheck,
+  Filter,
+  X,
+} from "lucide-react";
+
+
 
 function MySubmissions() {
+  const navigate = useNavigate();
+
+  const [submissions, setSubmissions] = useState([]);
   const [filter, setFilter] = useState("All");
+  const [search, setSearch] = useState("");
 
-  const submissions = [
-    {
-      id: "PW-2026-001",
-      title: "Road Reconstruction",
-      location: "Sarita Vihar, Delhi",
-      department: "Public Works Department",
-      date: "18 Aug 2026",
-      status: "Under Verification",
-      statusClass: "review",
-      icon: "🛣️",
-    },
-    {
-      id: "PW-2026-002",
-      title: "Park Renovation",
-      location: "Sector 62, Noida",
-      department: "Urban Development",
-      date: "15 Aug 2026",
-      status: "Verified",
-      statusClass: "verified",
-      icon: "🌳",
-    },
-    {
-      id: "PW-2026-003",
-      title: "Drainage System Repair",
-      location: "Sector 18, Noida",
-      department: "Municipal Corporation",
-      date: "10 Aug 2026",
-      status: "Issues Found",
-      statusClass: "issues",
-      icon: "🌊",
-    },
-    {
-      id: "PW-2026-004",
-      title: "Metro Station Extension",
-      location: "Dwarka, Delhi",
-      department: "Transport Department",
-      date: "05 Aug 2026",
-      status: "Verified",
-      statusClass: "verified",
-      icon: "🚇",
-    },
-  ];
+  useEffect(() => {
+    const loadSubmissions = () => {
+      try {
+        const savedSubmissions = JSON.parse(
+          localStorage.getItem("proofOfWorkSubmissions") || "[]"
+        );
 
-  const filteredSubmissions =
-    filter === "All"
-      ? submissions
-      : submissions.filter((item) => item.status === filter);
+        setSubmissions(savedSubmissions);
+      } catch (error) {
+        console.error("Failed to load submissions:", error);
+        setSubmissions([]);
+      }
+    };
+
+    loadSubmissions();
+
+    window.addEventListener("workRegistered", loadSubmissions);
+
+    return () => {
+      window.removeEventListener(
+        "workRegistered",
+        loadSubmissions
+      );
+    };
+  }, []);
+
+  const stats = useMemo(() => {
+    return {
+      total: submissions.length,
+
+      verified: submissions.filter(
+        (item) => item.status === "Verified"
+      ).length,
+
+      review: submissions.filter(
+        (item) =>
+          item.status === "Under Verification" ||
+          item.status === "Under Review"
+      ).length,
+
+      issues: submissions.filter(
+        (item) => item.status === "Issues Found"
+      ).length,
+    };
+  }, [submissions]);
+
+  const filteredSubmissions = useMemo(() => {
+    return submissions.filter((item) => {
+      const matchesFilter =
+        filter === "All"
+          ? true
+          : item.status === filter;
+
+      const searchText = search.toLowerCase();
+
+      const matchesSearch =
+        (item.title || item.workName || "")
+          .toLowerCase()
+          .includes(searchText) ||
+        (item.location || item.workLocation || "")
+          .toLowerCase()
+          .includes(searchText) ||
+        (item.department || "")
+          .toLowerCase()
+          .includes(searchText) ||
+        (item.id || "")
+          .toLowerCase()
+          .includes(searchText);
+
+      return matchesFilter && matchesSearch;
+    });
+  }, [submissions, filter, search]);
+
+  const getStatusClass = (status) => {
+    if (status === "Verified") return "verified";
+
+    if (
+      status === "Under Verification" ||
+      status === "Under Review"
+    ) {
+      return "review";
+    }
+
+    if (status === "Issues Found") {
+      return "issues";
+    }
+
+    return "review";
+  };
+
+  const getStatusIcon = (status) => {
+    if (status === "Verified") {
+      return <CheckCircle2 size={14} />;
+    }
+
+    if (status === "Issues Found") {
+      return <AlertTriangle size={14} />;
+    }
+
+    return <Clock3 size={14} />;
+  };
 
   return (
     <div className="submissions-page">
 
-      {/* PAGE HEADER */}
-      <div className="submissions-header">
-        <div>
-          <p className="page-label">MY ACTIVITY</p>
+      {/* HERO */}
 
-          <h1>My Submissions</h1>
+      <section className="submissions-header">
 
-          <p>
-            Track and manage all public work submissions.
-          </p>
-        </div>
+        <div className="header-grid-pattern"></div>
 
-        <button
-          className="new-submission-btn"
-          onClick={() => {
-            window.location.href = "/register-work";
-          }}
-        >
-          <span>＋</span>
-          Register New Work
-        </button>
-      </div>
+        <div className="submissions-header-content">
 
-      {/* SUMMARY CARDS */}
-      <section className="submission-summary">
+          <div className="header-left">
 
-        <div className="submission-summary-card">
-          <div className="summary-icon">📋</div>
+            <div className="page-label">
+              <span className="label-line"></span>
+              CITIZEN ACTIVITY
+            </div>
 
-          <div>
-            <p>Total Submissions</p>
-            <h2>24</h2>
+            <h1>
+              My <span>Submissions</span>
+            </h1>
+
+            <p>
+              Track your public infrastructure reports,
+              evidence submissions and verification progress.
+            </p>
+
           </div>
-        </div>
 
-        <div className="submission-summary-card verified-card">
-          <div className="summary-icon">✓</div>
+          <button
+            className="new-submission-btn"
+            onClick={() =>
+              navigate("/register-work")
+            }
+          >
+            <Plus size={18} />
+            Register New Work
+          </button>
 
-          <div>
-            <p>Verified</p>
-            <h2>12</h2>
-          </div>
-        </div>
-
-        <div className="submission-summary-card review-card">
-          <div className="summary-icon">⏳</div>
-
-          <div>
-            <p>Under Review</p>
-            <h2>8</h2>
-          </div>
-        </div>
-
-        <div className="submission-summary-card issues-card">
-          <div className="summary-icon">!</div>
-
-          <div>
-            <p>Issues Found</p>
-            <h2>4</h2>
-          </div>
         </div>
 
       </section>
 
-      {/* FILTER + SEARCH */}
-      <section className="submissions-controls">
 
-        <div className="submission-tabs">
+      <main className="submissions-container">
 
-          {["All", "Verified", "Under Verification", "Issues Found"].map(
-            (item) => (
-              <button
-                key={item}
-                onClick={() => setFilter(item)}
-                className={`submission-tab ${
-                  filter === item ? "active" : ""
-                }`}
-              >
-                {item}
-              </button>
-            )
-          )}
+        {/* STATS */}
 
-        </div>
+        <section className="submission-summary">
 
-        <div className="submission-search">
-          <span>⌕</span>
+          <div className="submission-summary-card total-card">
 
-          <input
-            type="text"
-            placeholder="Search submissions..."
-          />
-        </div>
+            <div className="summary-card-top">
 
-      </section>
+              <div className="summary-icon total-icon">
+                <ClipboardCheck size={24} />
+              </div>
 
-      {/* SUBMISSIONS LIST */}
-      <section className="submissions-list">
+              <div className="summary-mini">
+                ALL WORK
+              </div>
 
-        <div className="submissions-list-header">
-          <div>
-            <p className="page-label">RECENT SUBMISSIONS</p>
-            <h2>Your Public Work Reports</h2>
+            </div>
+
+            <div className="summary-value">
+              {stats.total}
+            </div>
+
+            <div className="summary-label">
+              Total Submissions
+            </div>
+
+            <p>
+              Public works submitted by you
+            </p>
+
           </div>
 
-          <span>{filteredSubmissions.length} submissions</span>
-        </div>
 
-        <div className="submission-table">
+          <div className="submission-summary-card verified-card">
 
-          {filteredSubmissions.map((submission) => (
+            <div className="summary-card-top">
 
-            <div
-              className="submission-row"
-              key={submission.id}
-            >
-
-              {/* PROJECT */}
-              <div className="submission-project">
-
-                <div className="project-icon">
-                  {submission.icon}
-                </div>
-
-                <div>
-                  <h3>{submission.title}</h3>
-
-                  <p>
-                    {submission.id}
-                  </p>
-                </div>
-
+              <div className="summary-icon verified-icon">
+                <CheckCircle2 size={24} />
               </div>
 
-              {/* LOCATION */}
-              <div className="submission-detail">
-                <span className="detail-label">
-                  LOCATION
-                </span>
-
-                <p>📍 {submission.location}</p>
+              <div className="summary-mini success">
+                APPROVED
               </div>
 
-              {/* DEPARTMENT */}
-              <div className="submission-detail department-detail">
-                <span className="detail-label">
-                  DEPARTMENT
-                </span>
+            </div>
 
-                <p>{submission.department}</p>
+            <div className="summary-value">
+              {stats.verified}
+            </div>
+
+            <div className="summary-label">
+              Verified
+            </div>
+
+            <p>
+              Successfully verified projects
+            </p>
+
+          </div>
+
+
+          <div className="submission-summary-card review-card">
+
+            <div className="summary-card-top">
+
+              <div className="summary-icon review-icon">
+                <Clock3 size={24} />
               </div>
 
-              {/* DATE */}
-              <div className="submission-detail">
-                <span className="detail-label">
-                  SUBMITTED
-                </span>
-
-                <p>{submission.date}</p>
+              <div className="summary-mini warning">
+                PENDING
               </div>
 
-              {/* STATUS */}
-              <div className="submission-status">
+            </div>
 
-                <span
-                  className={`status-badge ${submission.statusClass}`}
+            <div className="summary-value">
+              {stats.review}
+            </div>
+
+            <div className="summary-label">
+              Under Review
+            </div>
+
+            <p>
+              Waiting for verification
+            </p>
+
+          </div>
+
+
+          <div className="submission-summary-card issues-card">
+
+            <div className="summary-card-top">
+
+              <div className="summary-icon issues-icon">
+                <AlertTriangle size={24} />
+              </div>
+
+              <div className="summary-mini danger">
+                ACTION
+              </div>
+
+            </div>
+
+            <div className="summary-value">
+              {stats.issues}
+            </div>
+
+            <div className="summary-label">
+              Issues Found
+            </div>
+
+            <p>
+              Reports requiring attention
+            </p>
+
+          </div>
+
+        </section>
+
+
+        {/* CONTROLS */}
+
+        <section className="submissions-controls">
+
+          <div className="controls-heading">
+
+            <div className="control-title">
+              <Filter size={15} />
+              FILTER REPORTS
+            </div>
+
+            <div className="submission-tabs">
+
+              {[
+                "All",
+                "Verified",
+                "Under Verification",
+                "Issues Found",
+              ].map((item) => (
+
+                <button
+                  key={item}
+                  onClick={() => setFilter(item)}
+                  className={`submission-tab ${
+                    filter === item ? "active" : ""
+                  }`}
                 >
-                  {submission.status}
-                </span>
+                  {item}
+
+                  <span>
+                    {item === "All"
+                      ? stats.total
+                      : item === "Verified"
+                      ? stats.verified
+                      : item === "Under Verification"
+                      ? stats.review
+                      : stats.issues}
+                  </span>
+
+                </button>
+
+              ))}
+
+            </div>
+
+          </div>
+
+
+          <div className="submission-search">
+
+            <Search size={18} />
+
+            <input
+              type="text"
+              placeholder="Search projects, location..."
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+            />
+
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+              >
+                <X size={17} />
+              </button>
+            )}
+
+          </div>
+
+        </section>
+
+
+        {/* SUBMISSIONS */}
+
+        <section className="submissions-list">
+
+          <div className="submissions-list-header">
+
+            <div>
+
+              <div className="list-label">
+                WORK REPORTS
+              </div>
+
+              <h2>
+                Your Public Work Evidence
+              </h2>
+
+              <p>
+                Review every project you have submitted.
+              </p>
+
+            </div>
+
+            <div className="submission-count">
+
+              <FileText size={17} />
+
+              <strong>
+                {filteredSubmissions.length}
+              </strong>
+
+              <span>
+                REPORTS
+              </span>
+
+            </div>
+
+          </div>
+
+
+          {filteredSubmissions.length > 0 ? (
+
+            <div className="submission-table">
+
+              <div className="submission-table-head">
+
+                <span>PROJECT</span>
+                <span>LOCATION</span>
+                <span>DEPARTMENT</span>
+                <span>SUBMITTED</span>
+                <span>STATUS</span>
+                <span></span>
 
               </div>
 
-              {/* ACTION */}
-              <button className="submission-action">
-                →
+
+              {filteredSubmissions.map(
+                (submission, index) => (
+
+                  <div
+                    className="submission-row"
+                    key={submission.id}
+                  >
+
+                    {/* PROJECT */}
+
+                    <div className="submission-project">
+
+                      <div className="project-number">
+                        {String(index + 1).padStart(
+                          2,
+                          "0"
+                        )}
+                      </div>
+
+                      <div className="project-icon">
+                        <Building2 size={21} />
+                      </div>
+
+                      <div className="project-info">
+
+                        <h3>
+                          {submission.title ||
+                            submission.workName}
+                        </h3>
+
+                        <p>
+                          {submission.id}
+                        </p>
+
+                      </div>
+
+                    </div>
+
+
+                    {/* LOCATION */}
+
+                    <div className="submission-detail">
+
+                      <span className="mobile-label">
+                        LOCATION
+                      </span>
+
+                      <p>
+                        <MapPin size={15} />
+
+                        {submission.location ||
+                          submission.workLocation ||
+                          "Location not provided"}
+                      </p>
+
+                    </div>
+
+
+                    {/* DEPARTMENT */}
+
+                    <div className="submission-detail">
+
+                      <span className="mobile-label">
+                        DEPARTMENT
+                      </span>
+
+                      <p>
+                        {submission.department ||
+                          "Not specified"}
+                      </p>
+
+                    </div>
+
+
+                    {/* DATE */}
+
+                    <div className="submission-detail">
+
+                      <span className="mobile-label">
+                        SUBMITTED
+                      </span>
+
+                      <p>
+                        <CalendarDays size={14} />
+
+                        {submission.date ||
+                          "Recently"}
+                      </p>
+
+                    </div>
+
+
+                    {/* STATUS */}
+
+                    <div className="submission-status">
+
+                      <span
+                        className={`status-badge ${getStatusClass(
+                          submission.status
+                        )}`}
+                      >
+                        {getStatusIcon(
+                          submission.status
+                        )}
+
+                        {submission.status ||
+                          "Under Verification"}
+
+                      </span>
+
+                    </div>
+
+
+                    {/* ACTION */}
+
+                    <button
+                      className="submission-action"
+                      onClick={() =>
+                        navigate(
+                          `/submission/${submission.id}`
+                        )
+                      }
+                    >
+                      <ArrowRight size={18} />
+                    </button>
+
+                  </div>
+
+                )
+              )}
+
+            </div>
+
+          ) : (
+
+            <div className="empty-submissions">
+
+              <div className="empty-icon">
+                <FileText size={34} />
+              </div>
+
+              <div className="empty-label">
+                NO REPORTS YET
+              </div>
+
+              <h3>
+                No submissions found
+              </h3>
+
+              <p>
+                Register your first public infrastructure
+                project and upload verifiable evidence.
+              </p>
+
+              <button
+                className="empty-register-btn"
+                onClick={() =>
+                  navigate("/register-work")
+                }
+              >
+                <Plus size={17} />
+                Register First Work
               </button>
 
             </div>
 
-          ))}
+          )}
 
-        </div>
+        </section>
 
-      </section>
+      </main>
 
     </div>
   );

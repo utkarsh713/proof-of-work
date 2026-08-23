@@ -1,6 +1,24 @@
 import { NavLink } from "react-router-dom";
 
 function Sidebar() {
+  // Get logged-in user from localStorage
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+  // User details
+  const userName =
+    user.name ||
+    user.fullName ||
+    "User";
+
+  const userRole =
+    user.role ||
+    "Citizen";
+
+  // First letter for avatar
+  const firstLetter = userName
+    .charAt(0)
+    .toUpperCase();
+
   const menuItems = [
     {
       label: "Dashboard",
@@ -21,11 +39,6 @@ function Sidebar() {
       label: "AI Verification",
       icon: "✦",
       path: "/ai-verification",
-    },
-    {
-      label: "Citizen Verification",
-      icon: "♟",
-      path: "/citizen-verification",
     },
     {
       label: "Map View",
@@ -58,7 +71,6 @@ function Sidebar() {
     <aside className="sidebar">
 
       {/* LOGO */}
-
       <div className="sidebar-logo">
 
         <div className="logo-shield">
@@ -66,22 +78,19 @@ function Sidebar() {
         </div>
 
         <div className="logo-text">
-
           <h2>
             Proof-of-<span>Work</span>
           </h2>
 
           <p>
-            for Public Services
+            FOR PUBLIC SERVICES
           </p>
-
         </div>
 
       </div>
 
 
       {/* NAVIGATION */}
-
       <nav className="sidebar-nav">
 
         {menuItems.map((item) => (
@@ -104,6 +113,8 @@ function Sidebar() {
               {item.label}
             </span>
 
+
+            {/* Notification Badge */}
             {item.label === "Notifications" && (
               <span className="notification-badge">
                 3
@@ -118,23 +129,25 @@ function Sidebar() {
 
 
       {/* USER PROFILE */}
-
       <div className="sidebar-bottom">
 
         <div className="profile-card">
 
+          {/* USER AVATAR */}
           <div className="profile-avatar">
-            A
+            {firstLetter}
           </div>
 
+
+          {/* USER INFORMATION */}
           <div className="profile-info">
 
             <strong>
-              Anjali Yadav
+              {userName}
             </strong>
 
             <span>
-              Citizen
+              {userRole}
             </span>
 
           </div>
@@ -142,9 +155,13 @@ function Sidebar() {
         </div>
 
 
-        <button className="profile-button">
+        {/* VIEW PROFILE */}
+        <NavLink
+          to="/settings"
+          className="profile-button"
+        >
           View Profile
-        </button>
+        </NavLink>
 
       </div>
 

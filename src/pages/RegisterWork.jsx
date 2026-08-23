@@ -21,13 +21,70 @@ function RegisterWork() {
   const [workLocation, setWorkLocation] = useState("");
   const [estimatedCost, setEstimatedCost] = useState("");
 
-  // =========================
-  // GPS
-  // =========================
+  const [beforeImage, setBeforeImage] = useState(null);
+  const [afterImage, setAfterImage] = useState(null);
 
-  const captureGPS = () => {
-    setLocationError("");
+  const [beforePreview, setBeforePreview] = useState(null);
+  const [afterPreview, setAfterPreview] = useState(null);
 
+  const [gpsLocation, setGpsLocation] = useState(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const convertToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleBeforeImage = async (e) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Before image must be smaller than 10MB.");
+      return;
+    }
+
+    try {
+      const base64 = await convertToBase64(file);
+
+      setBeforeImage(base64);
+      setBeforePreview(base64);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to upload Before image.");
+    }
+  };
+
+  const handleAfterImage = async (e) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert("After image must be smaller than 10MB.");
+      return;
+    }
+
+    try {
+      const base64 = await convertToBase64(file);
+
+      setAfterImage(base64);
+      setAfterPreview(base64);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to upload After image.");
+    }
+  };
+
+  const handleCaptureGPS = () => {
     if (!navigator.geolocation) {
       setLocationError(
         "GPS is not supported by this browser."
@@ -42,9 +99,14 @@ function RegisterWork() {
           longitude: position.coords.longitude,
         });
       },
-      () => {
-        setLocationError(
-          "Unable to get your location. Please allow location access."
+
+      (error) => {
+        console.error(error);
+
+        setGpsLoading(false);
+
+        alert(
+          "Unable to capture your location. Please allow location permission."
         );
       },
       {
@@ -55,62 +117,8 @@ function RegisterWork() {
     );
   };
 
-  // =========================
-  // BEFORE IMAGE
-  // =========================
-
-  const handleBeforeImage = (e) => {
-    const file = e.target.files[0];
-
-    if (!file) return;
-
-    // Check image size
-    if (file.size > 10 * 1024 * 1024) {
-      alert("Before image must be smaller than 10MB.");
-      return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      setBeforeImage(reader.result);
-    };
-
-    reader.readAsDataURL(file);
-  };
-
-  // =========================
-  // AFTER IMAGE
-  // =========================
-
-  const handleAfterImage = (e) => {
-    const file = e.target.files[0];
-
-    if (!file) return;
-
-    // Check image size
-    if (file.size > 10 * 1024 * 1024) {
-      alert("After image must be smaller than 10MB.");
-      return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      setAfterImage(reader.result);
-    };
-
-    reader.readAsDataURL(file);
-  };
-
-  // =========================
-  // SUBMIT
-  // =========================
-
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    // Basic validation
 
     if (!workName.trim()) {
       alert("Please enter the work name.");
@@ -152,18 +160,30 @@ function RegisterWork() {
       return;
     }
 
-    // Create work object
+    setSubmitting(true);
 
-    const work = {
-      id: `PW-${Date.now()}`,
+    try {
+      const currentUser = JSON.parse(
+        localStorage.getItem("currentUser") || "null"
+      );
 
-      workName,
-      department,
-      description,
-      workLocation,
-      estimatedCost,
+      const work = {
+        id: `PW-${Date.now()}`,
 
-      gpsLocation,
+        userId: currentUser?.id || "guest-user",
+
+        workName: workName.trim(),
+        title: workName.trim(),
+
+        department,
+
+        description: description.trim(),
+
+        workLocation: workLocation.trim(),
+
+        estimatedCost: Number(estimatedCost),
+
+        gpsLocation,
 
       beforeImage,
       afterImage,
@@ -172,76 +192,75 @@ function RegisterWork() {
 
       aiScore: 94,
 
-      createdAt: new Date().toISOString(),
-    };
+        createdAt: new Date().toISOString(),
+      };
 
-    // Save to browser storage
-
-    localStorage.setItem(
-      "registeredWork",
-      JSON.stringify(work)
-    );
-
-    // Also keep a submissions list
-
-    const existingSubmissions =
-      JSON.parse(
-        localStorage.getItem("submissions") || "[]"
+      // Get existing works
+      const existingWorks = JSON.parse(
+        localStorage.getItem("works") || "[]"
       );
 
-    existingSubmissions.unshift(work);
+      // Add new work
+      const updatedWorks = [
+        work,
+        ...existingWorks,
+      ];
 
-    localStorage.setItem(
-      "submissions",
-      JSON.stringify(existingSubmissions)
-    );
+      // IMPORTANT: Save to works for Dashboard
+      localStorage.setItem(
+        "works",
+        JSON.stringify(updatedWorks)
+      );
 
-    // Go to dashboard
+      // Optional submissions storage
+      localStorage.setItem(
+        "submissions",
+        JSON.stringify(updatedWorks)
+      );
 
-    navigate("/dashboard");
+      // Save latest work
+      localStorage.setItem(
+        "registeredWork",
+        JSON.stringify(work)
+      );
+
+      // Notify Dashboard
+      window.dispatchEvent(
+        new Event("workRegistered")
+      );
+
+      alert("Work registered successfully!");
+
+      navigate("/dashboard");
+
+    } catch (error) {
+      console.error(error);
+
+      alert("Something went wrong while registering work.");
+    } finally {
+      setSubmitting(false);
+    }
   };
-
-  // =========================
-  // JSX
-  // =========================
 
   return (
     <div className="work-page">
 
-      <div className="work-card">
+      <div className="register-page-bg"></div>
 
-        {/* =========================
-            TOP BAR
-        ========================== */}
+      <form
+        className="register-work-form"
+        onSubmit={handleSubmit}
+      >
 
-        <div className="work-topbar">
-
-          <button
-            type="button"
-            className="back-button"
-            onClick={() => navigate("/dashboard")}
-          >
-            ← Dashboard
-          </button>
-
-          <span className="secure-label">
-            🛡️ SECURE REGISTRATION
-          </span>
-
-        </div>
-
-
-        {/* =========================
-            HEADER
-        ========================== */}
+        {/* PAGE HEADER */}
 
         <div className="work-header">
 
           <div>
 
-            <p className="page-label">
-              PUBLIC SERVICE
-            </p>
+            <span className="register-kicker">
+              PUBLIC WORK SUBMISSION
+            </span>
 
             <h1>
               Register Public Work
@@ -251,21 +270,52 @@ function RegisterWork() {
               Submit details and evidence to verify
               a public project.
             </p>
-
           </div>
 
-          <div className="work-icon">
-            🏗️
+          <div className="register-progress">
+
+            <div className="progress-label">
+              <span>Submission Progress</span>
+              <strong>
+                {[
+                  workName,
+                  department,
+                  description,
+                  workLocation,
+                  estimatedCost,
+                  beforeImage,
+                  afterImage,
+                  gpsLocation,
+                ].filter(Boolean).length * 12.5}%
+              </strong>
+            </div>
+
+            <div className="progress-track">
+              <div
+                className="progress-fill"
+                style={{
+                  width: `${
+                    [
+                      workName,
+                      department,
+                      description,
+                      workLocation,
+                      estimatedCost,
+                      beforeImage,
+                      afterImage,
+                      gpsLocation,
+                    ].filter(Boolean).length * 12.5
+                  }%`,
+                }}
+              ></div>
+            </div>
+
           </div>
 
         </div>
 
 
-        <form onSubmit={handleSubmit}>
-
-          {/* =========================
-              WORK INFORMATION
-          ========================== */}
+        {/* STEP 01 */}
 
           <div className="work-section">
 
@@ -275,19 +325,22 @@ function RegisterWork() {
                 01
               </div>
 
-              <div>
+            <div>
+              <span className="step-kicker">
+                PROJECT DETAILS
+              </span>
 
                 <h2>
                   Work Information
                 </h2>
 
-                <p>
-                  Tell us about the public work.
-                </p>
-
-              </div>
-
+              <p>
+                Provide the essential information about
+                the public project.
+              </p>
             </div>
+
+          </div>
 
 
             <div className="form-row">
@@ -310,10 +363,8 @@ function RegisterWork() {
                   required
                 />
 
-              </div>
+            </div>
 
-
-              {/* DEPARTMENT */}
 
               <div className="form-group">
 
@@ -321,17 +372,16 @@ function RegisterWork() {
                   Department
                 </label>
 
-                <select
-                  value={department}
-                  onChange={(e) =>
-                    setDepartment(e.target.value)
-                  }
-                  required
-                >
+              <select
+                value={department}
+                onChange={(e) =>
+                  setDepartment(e.target.value)
+                }
+              >
 
-                  <option value="">
-                    Select department
-                  </option>
+                <option value="">
+                  Select Department
+                </option>
 
                   <option value="Municipal Corporation">
                     Municipal Corporation
@@ -351,12 +401,8 @@ function RegisterWork() {
 
                 </select>
 
-              </div>
-
             </div>
 
-
-            {/* DESCRIPTION */}
 
             <div className="form-group">
 
@@ -364,22 +410,23 @@ function RegisterWork() {
                 Work Description
               </label>
 
-              <textarea
-                rows="4"
-                placeholder="Describe the public work..."
-                value={description}
-                onChange={(e) =>
-                  setDescription(e.target.value)
-                }
-                required
-              />
+              <div className="input-prefix">
+                <span>₹</span>
+
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="Enter estimated cost"
+                  value={estimatedCost}
+                  onChange={(e) =>
+                    setEstimatedCost(e.target.value)
+                  }
+                />
 
             </div>
 
+            </div>
 
-            {/* LOCATION + COST */}
-
-            <div className="form-row">
 
               <div className="form-group">
 
@@ -397,7 +444,7 @@ function RegisterWork() {
                   required
                 />
 
-              </div>
+            </div>
 
 
               <div className="form-group">
@@ -429,9 +476,7 @@ function RegisterWork() {
           </div>
 
 
-          {/* =========================
-              EVIDENCE
-          ========================== */}
+        {/* STEP 02 */}
 
           <div className="work-section">
 
@@ -441,28 +486,27 @@ function RegisterWork() {
                 02
               </div>
 
-              <div>
+            <div>
+              <span className="step-kicker">
+                VISUAL PROOF
+              </span>
 
                 <h2>
                   Evidence
                 </h2>
 
-                <p>
-                  Upload before and after evidence.
-                </p>
-
-              </div>
-
+              <p>
+                Upload before and after photographs
+                to show the transformation.
+              </p>
             </div>
+
+          </div>
 
 
             <div className="evidence-upload-grid">
 
-              {/* =========================
-                  BEFORE
-              ========================== */}
-
-              <div className="evidence-upload-card">
+            <div className="evidence-upload before-upload">
 
                 <div className="upload-card-header">
 
@@ -481,19 +525,22 @@ function RegisterWork() {
 
                   <div className="upload-preview">
 
-                    <img
-                      src={beforeImage}
-                      alt="Before work"
-                    />
+                  <img
+                    src={beforePreview}
+                    alt="Before Work"
+                  />
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setBeforeImage(null)
-                      }
+                  <div className="preview-overlay">
+
+                    <span>BEFORE WORK</span>
+
+                    <label
+                      htmlFor="before-upload"
                     >
-                      Remove
-                    </button>
+                      Change Photo
+                    </label>
+
+                  </div>
 
                   </div>
 
@@ -527,7 +574,7 @@ function RegisterWork() {
 
                 )}
 
-              </div>
+            </div>
 
 
               {/* =========================
@@ -536,36 +583,46 @@ function RegisterWork() {
 
               <div className="evidence-upload-card">
 
-                <div className="upload-card-header">
+              <div></div>
 
-                  <span className="upload-type after">
-                    AFTER
-                  </span>
+              <span>→</span>
 
-                  <span>
-                    Required
-                  </span>
+              <small>TRANSFORMATION</small>
 
                 </div>
 
+            {/* AFTER */}
 
-                {afterImage ? (
+            <div className="evidence-upload after-upload">
+
+              <input
+                type="file"
+                accept="image/*"
+                id="after-upload"
+                hidden
+                onChange={handleAfterImage}
+              />
+
+              {afterPreview ? (
 
                   <div className="upload-preview">
 
-                    <img
-                      src={afterImage}
-                      alt="After work"
-                    />
+                  <img
+                    src={afterPreview}
+                    alt="After Work"
+                  />
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAfterImage(null)
-                      }
+                  <div className="preview-overlay">
+
+                    <span>AFTER WORK</span>
+
+                    <label
+                      htmlFor="after-upload"
                     >
-                      Remove
-                    </button>
+                      Change Photo
+                    </label>
+
+                  </div>
 
                   </div>
 
@@ -606,9 +663,7 @@ function RegisterWork() {
           </div>
 
 
-          {/* =========================
-              GPS
-          ========================== */}
+        {/* STEP 03 */}
 
           <div className="work-section">
 
@@ -618,19 +673,22 @@ function RegisterWork() {
                 03
               </div>
 
-              <div>
+            <div>
+              <span className="step-kicker">
+                LOCATION PROOF
+              </span>
 
                 <h2>
                   Location Verification
                 </h2>
 
-                <p>
-                  Verify where the public work is located.
-                </p>
-
-              </div>
-
+              <p>
+                Capture the GPS coordinates of the
+                public work location.
+              </p>
             </div>
+
+          </div>
 
 
             <div className="gps-card">
@@ -647,14 +705,30 @@ function RegisterWork() {
                     GPS Location
                   </h3>
 
-                  <p>
-                    Capture your current location
-                    with the evidence.
-                  </p>
+              {gpsLocation ? (
 
-                </div>
+                <p className="gps-success">
 
-              </div>
+                  ✓ Coordinates captured
+
+                  <span>
+                    {gpsLocation.latitude.toFixed(5)},
+                    {" "}
+                    {gpsLocation.longitude.toFixed(5)}
+                  </span>
+
+                </p>
+
+              ) : (
+
+                <p>
+                  Verify the physical location
+                  of this public project.
+                </p>
+
+              )}
+
+            </div>
 
 
               <button
@@ -669,75 +743,38 @@ function RegisterWork() {
 
             </div>
 
-
-            {/* GPS SUCCESS */}
-
-            {gpsLocation && (
-
-              <div className="gps-success">
-
-                <span>
-                  ✓
-                </span>
-
-                <div>
-
-                  <strong>
-                    Location successfully captured
-                  </strong>
-
-                  <small>
-                    Latitude:{" "}
-                    {gpsLocation.latitude.toFixed(6)}
-                    {"  •  "}
-                    Longitude:{" "}
-                    {gpsLocation.longitude.toFixed(6)}
-                  </small>
-
-                </div>
-
-              </div>
-
-            )}
+        </section>
 
 
-            {/* GPS ERROR */}
+        {/* ACTIONS */}
 
-            {locationError && (
+        <div className="register-actions">
 
-              <div className="gps-error">
-                ⚠️ {locationError}
-              </div>
-
-            )}
-
-          </div>
-
-
-          {/* =========================
-              ACTIONS
-          ========================== */}
-
-          <div className="form-actions">
-
-            <button
-              type="button"
-              className="cancel-button"
-              onClick={() =>
-                navigate("/dashboard")
-              }
-            >
-              Cancel
-            </button>
+          <button
+            type="button"
+            className="cancel-button"
+            onClick={() =>
+              navigate("/dashboard")
+            }
+          >
+            Cancel
+          </button>
 
 
-            <button
-              type="submit"
-              className="submit-button"
-            >
-              Register Work
-              <span>→</span>
-            </button>
+          <button
+            type="submit"
+            className="register-work-button"
+            disabled={submitting}
+          >
+
+            {submitting
+              ? "Registering..."
+              : "Register Work"
+            }
+
+            <span>→</span>
+
+          </button>
 
           </div>
 
