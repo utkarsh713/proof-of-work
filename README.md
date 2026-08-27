@@ -7,8 +7,6 @@
 **From "Completed" to "Verified with Evidence."**
 
 <p>
-  <img src="https://img.shields.io/badge/Smart%20India%20Hackathon-2026-blueviolet?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/AI-Powered-Verification-ff4b8b?style=for-the-badge" />
   <img src="https://img.shields.io/badge/React-Frontend-61DAFB?style=for-the-badge&logo=react&logoColor=black" />
   <img src="https://img.shields.io/badge/Spring%20Boot-Backend-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" />
   <img src="https://img.shields.io/badge/Python-AI%20Service-3776AB?style=for-the-badge&logo=python&logoColor=white" />
