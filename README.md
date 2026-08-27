@@ -1,83 +1,98 @@
-# Proof-of-Work — Homepage
+<div align="center">
 
-A cinematic, dark, editorial homepage for a public-infrastructure transparency
-platform. Built with React + Vite, Tailwind CSS, Framer Motion, and Lucide icons.
+# 🛡️ ProofForge
 
-## Setup
+### AI-Powered Verification of Public Services
 
-```bash
-npm install
-npm run dev
-```
+**From "Completed" to "Verified with Evidence."**
 
-Then open the local URL Vite prints (usually `http://localhost:5173`).
+<p>
+  <img src="https://img.shields.io/badge/Smart%20India%20Hackathon-2026-blueviolet?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/AI-Powered-Verification-ff4b8b?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/React-Frontend-61DAFB?style=for-the-badge&logo=react&logoColor=black" />
+  <img src="https://img.shields.io/badge/Spring%20Boot-Backend-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" />
+  <img src="https://img.shields.io/badge/Python-AI%20Service-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/PostgreSQL-Database-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" />
+</p>
 
-To build for production:
+<p>
+  <strong>Evidence • Verification • Transparency • Citizen Trust</strong>
+</p>
 
-```bash
-npm run build
-npm run preview
-```
+</div>
 
-## Adding your media
+---
 
-No video/image assets were provided with the brief, so every media slot
-currently renders a dark placeholder (subtle grain + hatch pattern) instead
-of a broken element. Drop your real files into `public/assets/` using the
-exact filenames listed in `public/assets/README.md` — the components already
-reference those paths, so nothing else needs to change.
+## 📌 Overview
 
-## Structure
+**ProofForge** is an AI-powered public-service verification platform designed to make public-work completion more **transparent, evidence-backed, and accountable**.
 
-```
-src/
-├── assets/                 (unused — see public/assets instead)
-├── components/
-│   ├── Navbar.jsx
-│   ├── Hero.jsx
-│   ├── TrustBar.jsx
-│   ├── InfrastructureShowcase.jsx
-│   ├── BeforeAfter.jsx
-│   ├── HowItWorks.jsx
-│   ├── Gallery.jsx
-│   ├── LiveProjects.jsx
-│   ├── Impact.jsx
-│   ├── FinalCTA.jsx
-│   ├── Footer.jsx
-│   ├── MagneticButton.jsx
-│   ├── CursorDot.jsx
-│   └── ScrollProgress.jsx
-├── hooks/
-│   └── useCountUp.js
-├── pages/
-│   └── Home.jsx
-├── App.jsx
-├── main.jsx
-└── index.css
-```
+In many public-service workflows, a work can simply be marked as **"Completed"**, while citizens may have limited ways to verify whether the work was actually completed, where the evidence was captured, and when it was captured.
 
-## Design tokens
+ProofForge addresses this gap by creating a complete verification trail using:
 
-| Token | Value |
-|---|---|
-| Background | `#080A09` |
-| Secondary Background | `#101311` |
-| Surface | `#151916` |
-| Border | `rgba(255,255,255,0.10)` |
-| Primary Text | `#F2F3EF` |
-| Secondary Text | `#A7ADA5` |
-| Accent Green | `#B7D36B` |
-| Dark Green | `#52613A` |
-| Muted Orange | `#D88A4A` |
+- 📸 Before & After Evidence
+- 📍 GPS Location Validation
+- 🕒 Timestamp Validation
+- 🤖 AI-Assisted Image Verification
+- 👥 Citizen Verification & Feedback
+- 📊 Multi-signal Final Verification Status
 
-Typography: **Space Grotesk** (display/headings), **Inter** (body),
-**IBM Plex Mono** (labels, eyebrows, data/numbers) — loaded via Google Fonts
-in `index.html`.
+The platform combines these signals instead of relying on a single photograph or manual verification process. :contentReference[oaicite:1]{index=1}
 
-## Notes
+---
 
-- Every scroll animation uses `whileInView`/`viewport={{ once: true }}` so
-  nothing re-triggers awkwardly if the user scrolls back up.
-- `prefers-reduced-motion` is respected globally in `index.css`.
-- The before/after slider and count-up stats are hand-rolled (no extra
-  dependencies) so the bundle stays lean for a hackathon demo.
+## 🎯 Problem Statement
+
+Public works such as roads, parks, infrastructure repairs, sanitation and other civic services are often reported as completed.
+
+However, several problems can occur:
+
+- Lack of verifiable evidence
+- Reused or suspicious photographs
+- Uncertainty about evidence location
+- Uncertainty about evidence timestamp
+- Slow manual verification
+- Limited citizen participation
+- Difficulty maintaining a transparent evidence trail
+
+The core question behind ProofForge is:
+
+> **How can a "Completed" status become an evidence-backed and transparent status?**
+
+ProofForge answers this through a combination of **evidence + metadata + AI analysis + citizen feedback**. :contentReference[oaicite:2]{index=2}
+
+---
+
+# 💡 Our Solution
+
+ProofForge creates an end-to-end verification workflow:
+
+```text
+                 PUBLIC WORK
+                      │
+                      ▼
+              Register the Work
+                      │
+                      ▼
+             BEFORE Evidence
+                      │
+                      ▼
+               Work Completed
+                      │
+                      ▼
+              AFTER Evidence
+                      │
+                      ▼
+             GPS + Timestamp
+                Validation
+                      │
+                      ▼
+               AI Verification
+                      │
+                      ▼
+              Citizen Review
+                      │
+                      ▼
+             Final Verification
+                  Status
