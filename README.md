@@ -37,13 +37,7 @@
 <img src="https://img.shields.io/badge/PostgreSQL-Database-4169E1?style=flat-square&logo=postgresql&logoColor=white" />
 
 <br><br>
-
-**SMART INDIA HACKATHON 2026**  
-**Theme:** Clean & Green Technology  
-**Team:** ProofForge ☣️
-
 </div>
-
 ---
 
 # 🌍 About the Project
