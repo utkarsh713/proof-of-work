@@ -800,42 +800,6 @@ This keeps frontend, backend, AI and documentation work organized. :contentRefer
 
 ---
 
-# 👨‍💻 Team ProofForge
-
-<div align="center">
-
-### ☣️ ProofForge
-
-| Member | Role |
-|---|---|
-| **Utkarsh** | Development |
-| **Anjali** | Development / UI |
-| **Sujal** | Development |
-| **Sarat** | Development |
-| **Komal** | Development |
-| **Uday** | Development |
-
-</div>
-
----
-
-# 🏆 Hackathon
-
-<div align="center">
-
-### SMART INDIA HACKATHON 2026
-
-**Theme:** Clean & Green Technology  
-**Problem Statement:** Civic Issue Resolution Platform  
-**Category:** Software  
-**Team:** ProofForge ☣️
-
-</div>
-
-The project was developed around the concept of an AI-powered civic issue reporting and public-work verification system. :contentReference[oaicite:15]{index=15}
-
----
-
 # 📚 Project Documentation
 
 The repository contains project documentation covering:
