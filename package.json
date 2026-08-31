@@ -1,7 +1,7 @@
 {
-  "name": "proof-of-work",
+  "name": "proof-of-work-frontend",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,21 +9,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "framer-motion": "^11.11.17",
     "leaflet": "^1.9.4",
-    "lucide-react": "^0.454.0",
+    "lucide-react": "^0.383.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-icons": "^5.7.0",
+    "react-icons": "^5.2.1",
     "react-leaflet": "^4.2.1",
-    "react-router-dom": "^7.18.2"
+    "react-router-dom": "^6.24.0"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.3",
-    "@vitejs/plugin-react": "^4.3.3",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.5.26",
-    "tailwindcss": "^3.4.19",
-    "vite": "^5.4.10"
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.3.1"
   }
 }

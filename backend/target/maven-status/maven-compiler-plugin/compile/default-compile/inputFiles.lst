@@ -1,6 +1,9 @@
 C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\client\AIServiceClient.java
 C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\config\RestTemplateConfig.java
+C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\controller\AuthController.java
 C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\controller\EvidenceController.java
+C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\controller\HomeController.java
+C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\controller\UserController.java
 C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\controller\VerificationController.java
 C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\controller\WorkController.java
 C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\entity\CitizenReport.java
@@ -10,8 +13,10 @@ C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\
 C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\entity\Work.java
 C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\ProofOfWorkApplication.java
 C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\repository\EvidenceRepository.java
+C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\repository\UserRepository.java
 C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\repository\VerificationRepository.java
 C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\repository\WorkRepository.java
+C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\service\AuthService.java
 C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\service\EvidenceService.java
 C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\service\VerificationService.java
 C:\Users\utkar\Desktop\proof-of-work\backend\src\main\java\com\proofofwork\demo\service\WorkService.java
