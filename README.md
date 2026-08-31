@@ -54,7 +54,7 @@ Proof-of-Work addresses this gap by creating a complete evidence trail using:
 - 🤖 AI-assisted image verification
 - 🔍 Image quality and change analysis
 - ♻️ Duplicate/reuse detection
-- 👥 Citizen verification and feedback
+- 👥 Citizen  feedback
 - 📊 Multi-signal final verification status
 
 > **Core Principle:**  
@@ -101,7 +101,7 @@ Proof-of-Work creates an evidence-driven verification pipeline.
        AI IMAGE VERIFICATION
                 │
                 ▼
-       CITIZEN VERIFICATION
+       CITIZEN FEEDBACK
                 │
                 ▼
          FINAL STATUS
@@ -260,13 +260,6 @@ Proof-of-Work supports three major roles.
 - Track verification
 - Respond to citizen reports
 
-### 👨‍👩‍👧 Citizen
-
-- View public works
-- Review evidence
-- Rate completed work
-- Report issues
-- Provide feedback
 
 :contentReference[oaicite:3]{index=3}
 
@@ -309,7 +302,7 @@ Proof-of-Work supports three major roles.
            │
            ▼
 ┌──────────────────────┐
-│ Citizen Verification │
+│ Citizen Feedback     │
 └──────────┬───────────┘
            │
            ▼
@@ -471,7 +464,7 @@ Upload After
   ↓
 View Verification Result
   ↓
-Citizen Check
+Authorities Check
 ```
 
 The intended demo flow keeps the judge experience simple and end-to-end.
@@ -599,14 +592,7 @@ The platform is intended to support official decision-making and transparency, n
 
 # 📈 Impact
 
-## 👨‍👩‍👧 Citizens
-
-- Evidence-backed project status
-- Better public visibility
-- Issue reporting
-- Increased confidence
-
-## 🏛️ Government / Authorities
+## 🏛️ Authorities
 
 - Faster verification
 - Structured evidence
