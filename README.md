@@ -1,5 +1,5 @@
 <div align="center">
-
+   
 # 🔐 PROOF-OF-WORK
 
 ### AI-Powered Verification of Public Services
