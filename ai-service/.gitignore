@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 uploads/
 .env
+main_backup.py
