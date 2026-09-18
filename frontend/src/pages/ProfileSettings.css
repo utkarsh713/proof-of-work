@@ -1,0 +1,5 @@
+/* ProfileSettings styling lives in the global src/index.css
+   (.profile-page, .profile-container, .form-grid, .save-button, etc.
+   are already defined there). This file exists only so the page's
+   `import "./ProfileSettings.css"` resolves; add page-specific
+   overrides here if needed. */
