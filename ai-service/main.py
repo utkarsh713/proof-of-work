@@ -1,10 +1,10 @@
+
 from fastapi import FastAPI, UploadFile, File, Form
 import os
 import shutil
 import math
 from datetime import datetime
 
-# Optional computer-vision feature matching for same-scene verification
 try:
     import cv2
     CV2_AVAILABLE = True
@@ -19,37 +19,56 @@ from sentence_transformers import SentenceTransformer, util
 
 import torch
 from transformers import AutoImageProcessor, SiglipForImageClassification
+
 from forensic_analysis import compare_forensics
 
 
 # ============================================================
-# FASTAPI
+# APP CONFIG
 # ============================================================
 
 app = FastAPI(
     title="Proof-of-Work AI Verification Service",
-    version="3.4.0"
+    version="5.1.1"
 )
 
 UPLOAD_DIR = "uploads"
-
-os.makedirs(
-    UPLOAD_DIR,
-    exist_ok=True
-)
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 # ============================================================
-# CLIP MODEL
+# GENERAL THRESHOLDS
 # ============================================================
 
-print("Loading CLIP model...")
+GPS_MAX_DISTANCE_METERS = 500
 
-image_model = SentenceTransformer(
-    "clip-ViT-B-32"
-)
+DESCRIPTION_SIGNIFICANT_THRESHOLD = 0.30
+DESCRIPTION_MODERATE_THRESHOLD = 0.15
 
-print("CLIP model loaded!")
+VISUAL_CHANGE_SIGNIFICANT_THRESHOLD = 0.30
+VISUAL_CHANGE_MODERATE_THRESHOLD = 0.15
+
+
+# ============================================================
+# SAME SCENE CONFIG
+# ============================================================
+
+SAME_SCENE_SEMANTIC_THRESHOLD = 0.70
+SAME_SCENE_BORDERLINE_THRESHOLD = 0.60
+
+HIGH_SEMANTIC_SIMILARITY = 0.78
+
+ORB_RATIO_TEST = 0.75
+
+RANSAC_REPROJECTION_THRESHOLD = 5.0
+
+RANSAC_MIN_GOOD_MATCHES = 12
+RANSAC_MIN_INLIERS = 6
+RANSAC_MIN_INLIER_RATIO = 0.30
+
+RANSAC_BORDERLINE_MIN_GOOD_MATCHES = 8
+RANSAC_BORDERLINE_MIN_INLIERS = 4
+RANSAC_BORDERLINE_INLIER_RATIO = 0.25
 
 
 # ============================================================
@@ -59,6 +78,20 @@ print("CLIP model loaded!")
 AUTHENTICITY_MODEL_NAME = (
     "prithivMLmods/deepfake-detector-model-v1"
 )
+
+
+# ============================================================
+# LOAD MODELS
+# ============================================================
+
+print("Loading CLIP model...")
+
+clip_model = SentenceTransformer(
+    "clip-ViT-B-32"
+)
+
+print("CLIP model loaded.")
+
 
 print("Loading authenticity model...")
 
@@ -80,80 +113,29 @@ try:
 
     AUTHENTICITY_MODEL_AVAILABLE = True
 
-    print(
-        "Authenticity model loaded!"
-    )
+    print("Authenticity model loaded.")
 
 except Exception as e:
 
     print(
-        "Authenticity model load failed:",
-        e
+        "Authenticity model could not be loaded:"
     )
 
-    authenticity_processor = None
+    print(e)
 
+    authenticity_processor = None
     authenticity_model = None
 
     AUTHENTICITY_MODEL_AVAILABLE = False
 
 
 # ============================================================
-# HOME
+# UTILITY FUNCTIONS
 # ============================================================
 
-@app.get("/")
-def home():
-
-    return {
-
-        "message":
-            "Proof-of-Work AI Service is running",
-
-        "status":
-            "OK"
-
-    }
-
-
-# ============================================================
-# HEALTH
-# ============================================================
-
-@app.get("/health")
-def health():
-
-    return {
-
-        "status":
-            "healthy",
-
-        "authenticity_model":
-            AUTHENTICITY_MODEL_AVAILABLE
-
-    }
-
-
-# ============================================================
-# RATIONAL -> FLOAT
-# ============================================================
-
-def rational_to_float(
-    value
-):
+def rational_to_float(value):
 
     try:
-
-        if value is None:
-
-            return None
-
-        if isinstance(
-            value,
-            (int, float)
-        ):
-
-            return float(value)
 
         if (
             hasattr(value, "numerator")
@@ -161,101 +143,48 @@ def rational_to_float(
             hasattr(value, "denominator")
         ):
 
-            if value.denominator == 0:
-
-                return None
-
             return (
                 float(value.numerator)
                 /
                 float(value.denominator)
             )
 
-        if (
-            isinstance(value, tuple)
-            and
-            len(value) == 2
-        ):
-
-            if float(value[1]) == 0:
-
-                return None
-
-            return (
-                float(value[0])
-                /
-                float(value[1])
-            )
-
         return float(value)
 
     except Exception:
 
-        return None
+        return 0.0
 
 
-# ============================================================
-# GPS DMS -> DECIMAL
-# ============================================================
-
-def gps_to_decimal(
-    values,
-    reference
-):
+def gps_to_decimal(value, ref):
 
     try:
 
-        if not values:
-
-            return None
-
-        if len(values) != 3:
-
-            return None
-
         degrees = rational_to_float(
-            values[0]
+            value[0]
         )
 
         minutes = rational_to_float(
-            values[1]
+            value[1]
         )
 
         seconds = rational_to_float(
-            values[2]
+            value[2]
         )
 
-        if (
-            degrees is None
-            or
-            minutes is None
-            or
-            seconds is None
-        ):
-
-            return None
-
-        result = (
-
+        decimal = (
             degrees
-
             +
-
-            minutes / 60
-
+            (minutes / 60.0)
             +
-
-            seconds / 3600
-
+            (seconds / 3600.0)
         )
 
-        if str(
-            reference
-        ).upper() in ["S", "W"]:
+        if ref in ["S", "W"]:
 
-            result = -result
+            decimal = -decimal
 
-        return result
+        return decimal
 
     except Exception:
 
@@ -266,30 +195,31 @@ def gps_to_decimal(
 # IMAGE METADATA
 # ============================================================
 
-def get_image_metadata(
-    path
-):
+def get_image_metadata(image_path):
 
     result = {
 
-        "timestamp":
-            None,
+        "timestamp": None,
 
-        "timestamp_source":
-            None,
+        "timestamp_original": None,
 
-        "gps":
-            None,
+        "latitude": None,
 
-        "gps_source":
-            None
+        "longitude": None,
 
+        "camera_make": None,
+
+        "camera_model": None,
+
+        "software": None,
+
+        "raw_exif": {}
     }
 
     try:
 
         image = Image.open(
-            path
+            image_path
         )
 
         exif = image.getexif()
@@ -298,135 +228,97 @@ def get_image_metadata(
 
             return result
 
-        # ----------------------------------------------------
-        # TIMESTAMP
-        # ----------------------------------------------------
+        exif_data = {}
 
-        timestamp_tags = [
+        for tag_id, value in exif.items():
 
-            36867,
-
-            36868,
-
-            306
-
-        ]
-
-        for tag_id in timestamp_tags:
-
-            value = exif.get(
+            tag = TAGS.get(
+                tag_id,
                 tag_id
             )
 
-            if value:
+            exif_data[tag] = value
 
-                result[
-                    "timestamp"
-                ] = str(value)
+        result["raw_exif"] = exif_data
 
-                result[
-                    "timestamp_source"
-                ] = str(
-                    TAGS.get(
-                        tag_id,
-                        tag_id
-                    )
-                )
+        result["timestamp"] = (
+            exif_data.get("DateTime")
+        )
 
-                break
+        result["timestamp_original"] = (
+            exif_data.get("DateTimeOriginal")
+        )
 
-        # ----------------------------------------------------
-        # GPS
-        # ----------------------------------------------------
+        result["camera_make"] = (
+            exif_data.get("Make")
+        )
 
-        gps = None
+        result["camera_model"] = (
+            exif_data.get("Model")
+        )
+
+        result["software"] = (
+            exif_data.get("Software")
+        )
+
+        gps_info = {}
 
         try:
 
-            gps = exif.get_ifd(
+            gps_ifd = exif.get_ifd(
                 IFD.GPSInfo
             )
 
+            for key, value in gps_ifd.items():
+
+                decoded_key = GPSTAGS.get(
+                    key,
+                    key
+                )
+
+                gps_info[decoded_key] = value
+
         except Exception:
 
-            pass
+            gps_info = {}
 
-        if not gps:
+        if gps_info:
 
-            gps = exif.get(
-                34853
+            lat = gps_info.get(
+                "GPSLatitude"
             )
 
-        if gps:
+            lat_ref = gps_info.get(
+                "GPSLatitudeRef"
+            )
 
-            readable = {}
+            lon = gps_info.get(
+                "GPSLongitude"
+            )
 
-            for key, value in gps.items():
+            lon_ref = gps_info.get(
+                "GPSLongitudeRef"
+            )
 
-                readable[
-                    GPSTAGS.get(
-                        key,
-                        key
+            if lat and lat_ref:
+
+                result["latitude"] = (
+                    gps_to_decimal(
+                        lat,
+                        lat_ref
                     )
-                ] = value
-
-            latitude = gps_to_decimal(
-
-                readable.get(
-                    "GPSLatitude"
-                ),
-
-                readable.get(
-                    "GPSLatitudeRef"
                 )
 
-            )
+            if lon and lon_ref:
 
-            longitude = gps_to_decimal(
-
-                readable.get(
-                    "GPSLongitude"
-                ),
-
-                readable.get(
-                    "GPSLongitudeRef"
+                result["longitude"] = (
+                    gps_to_decimal(
+                        lon,
+                        lon_ref
+                    )
                 )
 
-            )
-
-            if (
-                latitude is not None
-                and
-                longitude is not None
-            ):
-
-                result["gps"] = {
-
-                    "latitude":
-                        latitude,
-
-                    "longitude":
-                        longitude,
-
-                    "latitude_ref":
-                        str(
-                            readable.get(
-                                "GPSLatitudeRef"
-                            )
-                        ),
-
-                    "longitude_ref":
-                        str(
-                            readable.get(
-                                "GPSLongitudeRef"
-                            )
-                        )
-
-                }
-
-                result[
-                    "gps_source"
-                ] = "EXIF_GPS"
+        return result
 
     except Exception as e:
 
@@ -435,16 +327,14 @@ def get_image_metadata(
             e
         )
 
-    return result
+        return result
 
 
 # ============================================================
-# PARSE TIMESTAMP
+# TIMESTAMP PARSING
 # ============================================================
 
-def parse_timestamp(
-    value
-):
+def parse_timestamp(value):
 
     if not value:
 
@@ -456,8 +346,7 @@ def parse_timestamp(
 
         "%Y-%m-%d %H:%M:%S",
 
-        "%Y-%m-%dT%H:%M:%S"
-
+        "%Y/%m/%d %H:%M:%S"
     ]
 
     for fmt in formats:
@@ -465,19 +354,19 @@ def parse_timestamp(
         try:
 
             return datetime.strptime(
-                str(value).strip(),
+                str(value),
                 fmt
             )
 
-        except ValueError:
+        except Exception:
 
-            pass
+            continue
 
     return None
 
 
 # ============================================================
-# HAVERSINE DISTANCE
+# GPS DISTANCE
 # ============================================================
 
 def calculate_distance(
@@ -487,321 +376,62 @@ def calculate_distance(
     lon2
 ):
 
-    R = 6371000
+    if None in [
+        lat1,
+        lon1,
+        lat2,
+        lon2
+    ]:
 
-    p1 = math.radians(
+        return None
+
+    earth_radius = 6371000
+
+    phi1 = math.radians(
         lat1
     )
 
-    p2 = math.radians(
+    phi2 = math.radians(
         lat2
     )
 
-    dp = math.radians(
+    delta_phi = math.radians(
         lat2 - lat1
     )
 
-    dl = math.radians(
+    delta_lambda = math.radians(
         lon2 - lon1
     )
 
     a = (
 
-        math.sin(dp / 2) ** 2
+        math.sin(
+            delta_phi / 2
+        ) ** 2
 
         +
 
-        math.cos(p1)
+        math.cos(phi1)
         *
-        math.cos(p2)
+        math.cos(phi2)
         *
-        math.sin(dl / 2) ** 2
-
+        math.sin(
+            delta_lambda / 2
+        ) ** 2
     )
 
-    return (
-
-        R
-        *
+    c = (
         2
         *
         math.atan2(
             math.sqrt(a),
             math.sqrt(1 - a)
         )
-
     )
 
-
-# ============================================================
-# WORK SCENE RELEVANCE
-# ============================================================
-
-def check_scene_relevance(
-    description,
-    after_path
-):
-    """Semantic scene check to prevent unrelated images from passing."""
-
-    description_lower = description.lower()
-
-    if any(word in description_lower for word in [
-        "road", "street", "pothole", "asphalt",
-        "resurface", "roadway", "highway", "pavement"
-    ]):
-        positive_prompt = "a real photograph of a road or street showing road work"
-        negative_prompt = "a real photograph of an indoor hall, event, classroom, or room"
-        scene_type = "ROAD_WORK"
-    elif any(word in description_lower for word in [
-        "drain", "drainage", "sewer", "culvert"
-    ]):
-        positive_prompt = "a real photograph of drainage, sewer, or drain construction work"
-        negative_prompt = "a real photograph of an unrelated indoor hall or event"
-        scene_type = "DRAINAGE_WORK"
-    elif any(word in description_lower for word in [
-        "streetlight", "street light", "lamp post", "electric pole", "lighting"
-    ]):
-        positive_prompt = "a real photograph of a streetlight, lamp post, or electrical pole work site"
-        negative_prompt = "a real photograph of an unrelated indoor hall or event"
-        scene_type = "STREETLIGHT_WORK"
-    elif any(word in description_lower for word in [
-        "building", "wall", "construction", "renovation", "painting"
-    ]):
-        positive_prompt = "a real photograph of a building construction, repair, renovation, or painting work site"
-        negative_prompt = "a real photograph of an unrelated indoor hall or event"
-        scene_type = "BUILDING_WORK"
-    elif any(word in description_lower for word in [
-        "park", "garden", "playground", "green space"
-    ]):
-        positive_prompt = "a real photograph of a public park, garden, or playground work site"
-        negative_prompt = "a real photograph of an unrelated indoor hall or event"
-        scene_type = "PARK_WORK"
-    else:
-        positive_prompt = "a real photograph showing the work described in the task"
-        negative_prompt = "a real photograph of an unrelated location or indoor event"
-        scene_type = "GENERAL_WORK"
-
-    image_embedding = image_model.encode(
-        Image.open(after_path).convert("RGB"),
-        convert_to_tensor=True
+    return (
+        earth_radius * c
     )
-    positive_embedding = image_model.encode(
-        positive_prompt,
-        convert_to_tensor=True
-    )
-    negative_embedding = image_model.encode(
-        negative_prompt,
-        convert_to_tensor=True
-    )
-
-    positive_similarity = util.cos_sim(image_embedding, positive_embedding).item()
-    negative_similarity = util.cos_sim(image_embedding, negative_embedding).item()
-    margin = positive_similarity - negative_similarity
-
-    if margin >= 0.05:
-        status = "RELEVANT"
-    elif margin >= 0.0:
-        status = "UNCERTAIN"
-    else:
-        status = "NOT_RELEVANT"
-
-    return {
-        "scene_type": scene_type,
-        "positive_similarity": round(positive_similarity, 4),
-        "negative_similarity": round(negative_similarity, 4),
-        "margin": round(margin, 4),
-        "status": status
-    }
-
-
-# ============================================================
-# SAME-SCENE VERIFICATION
-# ============================================================
-
-def check_same_scene(
-    before_path,
-    after_path
-):
-    """
-    Checks whether Before and After appear to show the same physical scene.
-
-    Uses:
-    1. CLIP semantic similarity as a broad scene signal.
-    2. ORB local-feature matching as a physical landmark signal.
-
-    This is supporting evidence, not absolute proof of identity.
-    """
-
-    before_image = Image.open(
-        before_path
-    ).convert("RGB")
-
-    after_image = Image.open(
-        after_path
-    ).convert("RGB")
-
-    # --------------------------------------------------------
-    # CLIP SEMANTIC SIMILARITY
-    # --------------------------------------------------------
-
-    before_embedding = image_model.encode(
-        before_image,
-        convert_to_tensor=True
-    )
-
-    after_embedding = image_model.encode(
-        after_image,
-        convert_to_tensor=True
-    )
-
-    semantic_similarity = util.cos_sim(
-        before_embedding,
-        after_embedding
-    ).item()
-
-    semantic_similarity = max(
-        0.0,
-        min(1.0, semantic_similarity)
-    )
-
-    # --------------------------------------------------------
-    # ORB LOCAL FEATURE MATCHING
-    # --------------------------------------------------------
-
-    if not CV2_AVAILABLE:
-        return {
-            "status": "UNCERTAIN",
-            "method": "CLIP_ONLY",
-            "semantic_similarity": round(
-                semantic_similarity, 4
-            ),
-            "good_matches": None,
-            "feature_match_ratio": None,
-            "note": (
-                "OpenCV is not installed. Install "
-                "opencv-python for physical landmark matching."
-            )
-        }
-
-    try:
-        before_cv = cv2.cvtColor(
-            cv2.imread(before_path),
-            cv2.COLOR_BGR2GRAY
-        )
-        after_cv = cv2.cvtColor(
-            cv2.imread(after_path),
-            cv2.COLOR_BGR2GRAY
-        )
-
-        if before_cv is None or after_cv is None:
-            raise ValueError("Could not read images with OpenCV")
-
-        # Resize only for feature extraction; original evidence is untouched.
-        max_dim = 1200
-
-        def resize_for_matching(image):
-            h, w = image.shape[:2]
-            scale = min(1.0, max_dim / max(h, w))
-            if scale < 1.0:
-                return cv2.resize(
-                    image,
-                    (int(w * scale), int(h * scale)),
-                    interpolation=cv2.INTER_AREA
-                )
-            return image
-
-        before_cv = resize_for_matching(before_cv)
-        after_cv = resize_for_matching(after_cv)
-
-        orb = cv2.ORB_create(
-            nfeatures=1500,
-            scaleFactor=1.2,
-            nlevels=8
-        )
-
-        kp1, des1 = orb.detectAndCompute(
-            before_cv, None
-        )
-        kp2, des2 = orb.detectAndCompute(
-            after_cv, None
-        )
-
-        if des1 is None or des2 is None:
-            good_matches = 0
-            feature_match_ratio = 0.0
-        else:
-            matcher = cv2.BFMatcher(
-                cv2.NORM_HAMMING,
-                crossCheck=False
-            )
-
-            knn_matches = matcher.knnMatch(
-                des1,
-                des2,
-                k=2
-            )
-
-            good = []
-
-            for pair in knn_matches:
-                if len(pair) < 2:
-                    continue
-
-                m, n = pair
-
-                if m.distance < 0.75 * n.distance:
-                    good.append(m)
-
-            good_matches = len(good)
-            feature_match_ratio = good_matches / max(
-                min(len(kp1), len(kp2)),
-                1
-            )
-
-        # Conservative thresholds:
-        # - strong local matches + good semantic similarity => same scene
-        # - borderline evidence => manual review
-        # - weak semantic similarity => different scene
-        if (
-            semantic_similarity >= 0.70
-            and good_matches >= 15
-        ):
-            status = "SAME_SCENE"
-        elif (
-            semantic_similarity >= 0.60
-            and good_matches >= 5
-        ):
-            status = "UNCERTAIN"
-        else:
-            status = "DIFFERENT_SCENE"
-
-        return {
-            "status": status,
-            "method": "CLIP_ORB",
-            "semantic_similarity": round(
-                semantic_similarity, 4
-            ),
-            "good_matches": good_matches,
-            "feature_match_ratio": round(
-                feature_match_ratio, 4
-            ),
-            "note": (
-                "Local feature matching checks shared visual landmarks; "
-                "it is supporting evidence, not absolute proof."
-            )
-        }
-
-    except Exception as e:
-        return {
-            "status": "UNCERTAIN",
-            "method": "CLIP_ORB",
-            "semantic_similarity": round(
-                semantic_similarity, 4
-            ),
-            "good_matches": None,
-            "feature_match_ratio": None,
-            "error": str(e)
-        }
 
 
 # ============================================================
@@ -809,128 +439,127 @@ def check_same_scene(
 # ============================================================
 
 def check_metadata(
-    before,
-    after
+    before_path,
+    after_path
 ):
 
-    before_timestamp = before.get(
-        "timestamp"
+    before = get_image_metadata(
+        before_path
     )
 
-    after_timestamp = after.get(
-        "timestamp"
+    after = get_image_metadata(
+        after_path
     )
 
-    before_gps = before.get(
-        "gps"
+    before_time = parse_timestamp(
+        before.get(
+            "timestamp_original"
+        )
+        or
+        before.get(
+            "timestamp"
+        )
     )
 
-    after_gps = after.get(
-        "gps"
+    after_time = parse_timestamp(
+        after.get(
+            "timestamp_original"
+        )
+        or
+        after.get(
+            "timestamp"
+        )
     )
 
     timestamp_check = (
 
-        before_timestamp is not None
+        before_time is not None
 
         and
 
-        after_timestamp is not None
-
+        after_time is not None
     )
 
-    timestamp_order_check = None
+    timestamp_order_check = False
 
     if timestamp_check:
 
-        before_time = parse_timestamp(
-            before_timestamp
-        )
-
-        after_time = parse_timestamp(
-            after_timestamp
-        )
-
-        timestamp_order_check = bool(
-
-            before_time
-
-            and
-
-            after_time
-
-            and
-
+        timestamp_order_check = (
             after_time >= before_time
-
         )
 
-    gps_check = (
+    gps_available = (
 
-        before_gps is not None
+        before.get(
+            "latitude"
+        ) is not None
 
         and
 
-        after_gps is not None
+        before.get(
+            "longitude"
+        ) is not None
 
+        and
+
+        after.get(
+            "latitude"
+        ) is not None
+
+        and
+
+        after.get(
+            "longitude"
+        ) is not None
     )
 
-    distance = None
+    gps_distance = None
 
-    gps_location_check = None
+    gps_location_check = False
 
-    if gps_check:
+    if gps_available:
 
-        try:
+        gps_distance = calculate_distance(
 
-            distance = calculate_distance(
+            before["latitude"],
 
-                before_gps[
-                    "latitude"
-                ],
+            before["longitude"],
 
-                before_gps[
-                    "longitude"
-                ],
+            after["latitude"],
 
-                after_gps[
-                    "latitude"
-                ],
+            after["longitude"]
+        )
 
-                after_gps[
-                    "longitude"
-                ]
-
-            )
+        if gps_distance is not None:
 
             gps_location_check = (
-                distance <= 500
+                gps_distance
+                <=
+                GPS_MAX_DISTANCE_METERS
             )
 
-        except Exception:
-
-            gps_location_check = False
-
     if (
-
-        timestamp_order_check is True
-
+        timestamp_check
         and
-
-        gps_location_check is True
-
+        gps_available
     ):
 
-        status = "VERIFIED"
+        if (
+            timestamp_order_check
+            and
+            gps_location_check
+        ):
+
+            status = "VERIFIED"
+
+        else:
+
+            status = "PARTIAL_METADATA"
 
     elif (
-
         timestamp_check
-
         or
-
-        gps_check
-
+        gps_available
     ):
 
         status = "PARTIAL_METADATA"
@@ -948,85 +577,101 @@ def check_metadata(
             timestamp_order_check,
 
         "gps_check":
-            gps_check,
+            gps_available,
 
         "gps_location_check":
             gps_location_check,
 
-        "gps_distance_meters":
+        "gps_distance_meters": (
+
             round(
-                distance,
+                gps_distance,
                 2
             )
-            if distance is not None
-            else None,
+
+            if gps_distance is not None
+
+            else None
+        ),
+
+        "max_allowed_gps_distance_meters":
+            GPS_MAX_DISTANCE_METERS,
 
         "status":
             status
-
     }
 
 
 # ============================================================
-# FIND BEFORE / AFTER
+# FIND BEFORE / AFTER FILES
 # ============================================================
 
 def find_evidence_files(
     work_id
 ):
 
-    folder = os.path.join(
-
+    work_dir = os.path.join(
         UPLOAD_DIR,
-
         str(work_id)
-
     )
 
     if not os.path.exists(
-        folder
+        work_dir
     ):
 
         return None, None
 
-    before = None
+    files = os.listdir(
+        work_dir
+    )
 
-    after = None
+    before_file = None
 
-    for name in os.listdir(
-        folder
-    ):
+    after_file = None
 
-        lower = name.lower()
+    for filename in files:
 
-        if lower.startswith("."):
-            continue
+        lower = filename.lower()
 
-        # IMPORTANT:
-        # ELA output files are generated by forensic analysis.
-        # They must NEVER be selected as the original evidence.
-        if "_ela" in lower or lower.endswith("_ela.jpg"):
+        if "_ela" in lower:
+
             continue
 
         full_path = os.path.join(
-            folder,
-            name
+            work_dir,
+            filename
         )
 
-        if not os.path.isfile(full_path):
+        if not os.path.isfile(
+            full_path
+        ):
+
             continue
 
-        if "before" in lower:
-            before = full_path
+        if (
+            "before" in lower
+            and
+            before_file is None
+        ):
 
-        elif "after" in lower:
-            after = full_path
+            before_file = full_path
 
-    return before, after
+        elif (
+            "after" in lower
+            and
+            after_file is None
+        ):
+
+            after_file = full_path
+
+    return (
+        before_file,
+        after_file
+    )
 
 
 # ============================================================
-# CLIP BEFORE / AFTER
+# VISUAL COMPARISON
 # ============================================================
 
 def compare_images(
@@ -1034,136 +679,1322 @@ def compare_images(
     after_path
 ):
 
-    before_image = Image.open(
-        before_path
-    ).convert(
-        "RGB"
-    )
+    try:
 
-    after_image = Image.open(
-        after_path
-    ).convert(
-        "RGB"
-    )
+        before_image = Image.open(
+            before_path
+        ).convert("RGB")
 
-    before_embedding = image_model.encode(
+        after_image = Image.open(
+            after_path
+        ).convert("RGB")
 
-        before_image,
+        embeddings = clip_model.encode(
 
-        convert_to_tensor=True
+            [
+                before_image,
+                after_image
+            ],
 
-    )
+            convert_to_tensor=True,
 
-    after_embedding = image_model.encode(
+            normalize_embeddings=True
+        )
 
-        after_image,
+        similarity = float(
 
-        convert_to_tensor=True
+            util.cos_sim(
 
-    )
+                embeddings[0],
+                embeddings[1]
 
-    similarity = util.cos_sim(
+            ).item()
+        )
 
-        before_embedding,
+        similarity = max(
+            0.0,
+            min(
+                1.0,
+                similarity
+            )
+        )
 
-        after_embedding
-
-    ).item()
-
-    similarity = max(
-
-        0.0,
-
-        min(
-            1.0,
+        difference = (
+            1.0
+            -
             similarity
         )
 
+        if (
+            difference
+            >=
+            VISUAL_CHANGE_SIGNIFICANT_THRESHOLD
+        ):
+
+            status = (
+                "SIGNIFICANT_CHANGE"
+            )
+
+        elif (
+            difference
+            >=
+            VISUAL_CHANGE_MODERATE_THRESHOLD
+        ):
+
+            status = (
+                "MODERATE_CHANGE"
+            )
+
+        else:
+
+            status = (
+                "LOW_CHANGE"
+            )
+
+        return {
+
+            "similarity":
+                round(
+                    similarity,
+                    4
+                ),
+
+            "difference":
+                round(
+                    difference,
+                    4
+                ),
+
+            "status":
+                status
+        }
+
+    except Exception as e:
+
+        return {
+
+            "similarity": None,
+
+            "difference": None,
+
+            "status": "ERROR",
+
+            "error": str(e)
+        }
+
+
+# ============================================================
+# SAME SCENE - ORB + RANSAC
+# ============================================================
+
+def check_same_scene(
+    before_path,
+    after_path
+):
+
+    result = {
+
+        "status":
+            "UNCERTAIN",
+
+        "method":
+            "CLIP_ORB_RANSAC",
+
+        "semantic_similarity":
+            None,
+
+        "keypoints_before":
+            0,
+
+        "keypoints_after":
+            0,
+
+        "good_matches":
+            0,
+
+        "ransac_inliers":
+            0,
+
+        "ransac_inlier_ratio":
+            0.0,
+
+        "homography_found":
+            False,
+
+        "orb_ratio_test":
+            ORB_RATIO_TEST,
+
+        "ransac_reprojection_threshold":
+            RANSAC_REPROJECTION_THRESHOLD,
+
+        "ransac_min_inliers":
+            RANSAC_MIN_INLIERS,
+
+        "ransac_min_good_matches":
+            RANSAC_MIN_GOOD_MATCHES,
+
+        "decision_reason":
+            "",
+
+        "note": (
+            "GPS location indicates approximate physical "
+            "location only. CLIP measures semantic similarity, "
+            "while ORB and RANSAC provide local geometric "
+            "evidence. A small number of matches is not "
+            "sufficient to confirm the same physical scene."
+        )
+    }
+
+    # ========================================================
+    # CLIP
+    # ========================================================
+
+    try:
+
+        before_image = Image.open(
+            before_path
+        ).convert("RGB")
+
+        after_image = Image.open(
+            after_path
+        ).convert("RGB")
+
+        embeddings = clip_model.encode(
+
+            [
+                before_image,
+                after_image
+            ],
+
+            convert_to_tensor=True,
+
+            normalize_embeddings=True
+        )
+
+        semantic_similarity = float(
+
+            util.cos_sim(
+
+                embeddings[0],
+                embeddings[1]
+
+            ).item()
+        )
+
+        semantic_similarity = max(
+            0.0,
+            min(
+                1.0,
+                semantic_similarity
+            )
+        )
+
+        result[
+            "semantic_similarity"
+        ] = round(
+            semantic_similarity,
+            4
+        )
+
+    except Exception as e:
+
+        result["status"] = (
+            "UNCERTAIN"
+        )
+
+        result[
+            "decision_reason"
+        ] = (
+            "CLIP comparison failed: "
+            +
+            str(e)
+        )
+
+        return result
+
+    # ========================================================
+    # OpenCV unavailable
+    # ========================================================
+
+    if not CV2_AVAILABLE:
+
+        if (
+            semantic_similarity
+            >=
+            SAME_SCENE_SEMANTIC_THRESHOLD
+        ):
+
+            result["status"] = (
+                "UNCERTAIN"
+            )
+
+            result[
+                "decision_reason"
+            ] = (
+                "High semantic similarity was detected, "
+                "but OpenCV/ORB geometric verification "
+                "is unavailable."
+            )
+
+        else:
+
+            result["status"] = (
+                "DIFFERENT_SCENE"
+            )
+
+            result[
+                "decision_reason"
+            ] = (
+                "Semantic similarity is below the "
+                "same-scene threshold."
+            )
+
+        return result
+
+    # ========================================================
+    # LOAD GRAYSCALE IMAGES
+    # ========================================================
+
+    try:
+
+        before_cv = cv2.imread(
+            before_path,
+            cv2.IMREAD_GRAYSCALE
+        )
+
+        after_cv = cv2.imread(
+            after_path,
+            cv2.IMREAD_GRAYSCALE
+        )
+
+        if (
+            before_cv is None
+            or
+            after_cv is None
+        ):
+
+            result["status"] = (
+                "UNCERTAIN"
+            )
+
+            result[
+                "decision_reason"
+            ] = (
+                "Could not read one or both "
+                "images with OpenCV."
+            )
+
+            return result
+
+    except Exception as e:
+
+        result["status"] = (
+            "UNCERTAIN"
+        )
+
+        result[
+            "decision_reason"
+        ] = (
+            "OpenCV image loading failed: "
+            +
+            str(e)
+        )
+
+        return result
+
+    # ========================================================
+    # RESIZE
+    # ========================================================
+
+    MAX_DIMENSION = 1600
+
+    def resize_image(
+        image
+    ):
+
+        height, width = (
+            image.shape[:2]
+        )
+
+        largest = max(
+            height,
+            width
+        )
+
+        if (
+            largest
+            <=
+            MAX_DIMENSION
+        ):
+
+            return image
+
+        scale = (
+            MAX_DIMENSION
+            /
+            largest
+        )
+
+        new_width = int(
+            width * scale
+        )
+
+        new_height = int(
+            height * scale
+        )
+
+        return cv2.resize(
+
+            image,
+
+            (
+                new_width,
+                new_height
+            ),
+
+            interpolation=cv2.INTER_AREA
+        )
+
+    before_cv = resize_image(
+        before_cv
     )
 
-    difference = (
-        1 - similarity
+    after_cv = resize_image(
+        after_cv
     )
 
-    if difference >= 0.30:
+    # ========================================================
+    # ORB
+    # ========================================================
 
-        status = "SIGNIFICANT_CHANGE"
+    try:
 
-    elif difference >= 0.15:
+        orb = cv2.ORB_create(
+            nfeatures=2000
+        )
 
-        status = "MODERATE_CHANGE"
+        (
+            keypoints_before,
+            descriptors_before
+        ) = orb.detectAndCompute(
+            before_cv,
+            None
+        )
+
+        (
+            keypoints_after,
+            descriptors_after
+        ) = orb.detectAndCompute(
+            after_cv,
+            None
+        )
+
+        result[
+            "keypoints_before"
+        ] = (
+
+            len(keypoints_before)
+
+            if keypoints_before
+
+            else 0
+        )
+
+        result[
+            "keypoints_after"
+        ] = (
+
+            len(keypoints_after)
+
+            if keypoints_after
+
+            else 0
+        )
+
+        if (
+            descriptors_before is None
+            or
+            descriptors_after is None
+        ):
+
+            result["status"] = (
+
+                "UNCERTAIN"
+
+                if
+                semantic_similarity
+                >=
+                SAME_SCENE_SEMANTIC_THRESHOLD
+
+                else
+                "DIFFERENT_SCENE"
+            )
+
+            result[
+                "decision_reason"
+            ] = (
+                "Insufficient ORB features were "
+                "detected for reliable geometric "
+                "verification."
+            )
+
+            return result
+
+        matcher = cv2.BFMatcher(
+            cv2.NORM_HAMMING,
+            crossCheck=False
+        )
+
+        knn_matches = matcher.knnMatch(
+
+            descriptors_before,
+
+            descriptors_after,
+
+            k=2
+        )
+
+        good_matches = []
+
+        for pair in knn_matches:
+
+            if len(pair) < 2:
+
+                continue
+
+            m, n = pair
+
+            if (
+                m.distance
+                <
+                ORB_RATIO_TEST
+                *
+                n.distance
+            ):
+
+                good_matches.append(
+                    m
+                )
+
+        result[
+            "good_matches"
+        ] = len(
+            good_matches
+        )
+
+    except Exception as e:
+
+        result["status"] = (
+            "UNCERTAIN"
+        )
+
+        result[
+            "decision_reason"
+        ] = (
+            "ORB feature matching failed: "
+            +
+            str(e)
+        )
+
+        return result
+
+    # ========================================================
+    # NOT ENOUGH MATCHES
+    # ========================================================
+
+    if len(
+        good_matches
+    ) < 4:
+
+        result["status"] = (
+            "DIFFERENT_SCENE"
+        )
+
+        result[
+            "decision_reason"
+        ] = (
+            "Local feature matching produced fewer "
+            "than 4 reliable correspondences. "
+            "A same-scene geometric relationship "
+            "cannot be established."
+        )
+
+        return result
+
+    # ========================================================
+    # BUILD POINT CORRESPONDENCES
+    # ========================================================
+
+    src_pts = []
+
+    dst_pts = []
+
+    for match in good_matches:
+
+        src_pts.append(
+
+            keypoints_before[
+                match.queryIdx
+            ].pt
+        )
+
+        dst_pts.append(
+
+            keypoints_after[
+                match.trainIdx
+            ].pt
+        )
+
+    import numpy as np
+
+    src_pts = np.float32(
+        src_pts
+    ).reshape(
+        -1,
+        1,
+        2
+    )
+
+    dst_pts = np.float32(
+        dst_pts
+    ).reshape(
+        -1,
+        1,
+        2
+    )
+
+    # ========================================================
+    # RANSAC HOMOGRAPHY
+    # ========================================================
+
+    try:
+
+        homography, mask = (
+            cv2.findHomography(
+
+                src_pts,
+
+                dst_pts,
+
+                cv2.RANSAC,
+
+                RANSAC_REPROJECTION_THRESHOLD
+            )
+        )
+
+        if (
+            homography is None
+            or
+            mask is None
+        ):
+
+            result["status"] = (
+                "DIFFERENT_SCENE"
+            )
+
+            result[
+                "decision_reason"
+            ] = (
+                "RANSAC could not find a reliable "
+                "geometric model between the images."
+            )
+
+            return result
+
+        result[
+            "homography_found"
+        ] = True
+
+        inliers = int(
+            mask.ravel().sum()
+        )
+
+        result[
+            "ransac_inliers"
+        ] = inliers
+
+        total_matches = len(
+            good_matches
+        )
+
+        inlier_ratio = (
+
+            inliers
+            /
+            total_matches
+
+            if total_matches > 0
+
+            else 0.0
+        )
+
+        result[
+            "ransac_inlier_ratio"
+        ] = round(
+            inlier_ratio,
+            4
+        )
+
+    except Exception as e:
+
+        result["status"] = (
+            "UNCERTAIN"
+        )
+
+        result[
+            "decision_reason"
+        ] = (
+            "RANSAC verification failed: "
+            +
+            str(e)
+        )
+
+        return result
+
+    # ========================================================
+    # GEOMETRY DECISION
+    # ========================================================
+
+    strong_geometry = (
+
+        len(good_matches)
+        >=
+        RANSAC_MIN_GOOD_MATCHES
+
+        and
+
+        inliers
+        >=
+        RANSAC_MIN_INLIERS
+
+        and
+
+        inlier_ratio
+        >=
+        RANSAC_MIN_INLIER_RATIO
+    )
+
+    borderline_geometry = (
+
+        len(good_matches)
+        >=
+        RANSAC_BORDERLINE_MIN_GOOD_MATCHES
+
+        and
+
+        inliers
+        >=
+        RANSAC_BORDERLINE_MIN_INLIERS
+
+        and
+
+        inlier_ratio
+        >=
+        RANSAC_BORDERLINE_INLIER_RATIO
+    )
+
+    # ========================================================
+    # STRONG SAME SCENE
+    # ========================================================
+
+    if (
+
+        semantic_similarity
+        >=
+        SAME_SCENE_SEMANTIC_THRESHOLD
+
+        and
+
+        strong_geometry
+    ):
+
+        result["status"] = (
+            "SAME_SCENE"
+        )
+
+        result[
+            "decision_reason"
+        ] = (
+            "Semantic similarity is high and there "
+            "are enough independent local feature "
+            "matches with sufficient RANSAC inliers "
+            "to provide strong geometric evidence."
+        )
+
+    # ========================================================
+    # BORDERLINE
+    # ========================================================
+
+    elif (
+
+        semantic_similarity
+        >=
+        SAME_SCENE_BORDERLINE_THRESHOLD
+
+        and
+
+        borderline_geometry
+    ):
+
+        result["status"] = (
+            "UNCERTAIN"
+        )
+
+        result[
+            "decision_reason"
+        ] = (
+            "Semantic similarity and local geometric "
+            "evidence are present, but the evidence "
+            "is not strong enough to confidently "
+            "confirm the same physical scene."
+        )
+
+    # ========================================================
+    # HIGH CLIP + WEAK GEOMETRY
+    # ========================================================
+
+    elif (
+        semantic_similarity
+        >=
+        SAME_SCENE_SEMANTIC_THRESHOLD
+    ):
+
+        result["status"] = (
+            "UNCERTAIN"
+        )
+
+        result[
+            "decision_reason"
+        ] = (
+            "High semantic similarity was detected, "
+            "but the number of reliable local matches "
+            "or RANSAC inliers is too small to confirm "
+            "the same physical scene."
+        )
+
+    # ========================================================
+    # LOW SEMANTIC + WEAK GEOMETRY
+    # ========================================================
 
     else:
 
-        status = "LOW_CHANGE"
+        result["status"] = (
+            "DIFFERENT_SCENE"
+        )
+
+        result[
+            "decision_reason"
+        ] = (
+            "Semantic similarity is below the same-scene "
+            "threshold and geometric evidence is "
+            "insufficient to establish the same "
+            "physical scene."
+        )
+
+    return result
+
+
+# ============================================================
+# WORK DESCRIPTION CHECK
+# ============================================================
+
+def check_work_description(
+    image_path,
+    description
+):
+
+    if not description:
+
+        return {
+
+            "similarity": 0,
+
+            "status":
+                "NO_DESCRIPTION",
+
+            "role":
+                "SUPPORTING_SIGNAL"
+        }
+
+    try:
+
+        image = Image.open(
+            image_path
+        ).convert("RGB")
+
+        image_embedding = (
+            clip_model.encode(
+
+                image,
+
+                convert_to_tensor=True,
+
+                normalize_embeddings=True
+            )
+        )
+
+        text_embedding = (
+            clip_model.encode(
+
+                description,
+
+                convert_to_tensor=True,
+
+                normalize_embeddings=True
+            )
+        )
+
+        similarity = float(
+
+            util.cos_sim(
+
+                image_embedding,
+
+                text_embedding
+
+            ).item()
+        )
+
+        similarity = max(
+            0.0,
+            min(
+                1.0,
+                similarity
+            )
+        )
+
+        if (
+            similarity
+            >=
+            DESCRIPTION_SIGNIFICANT_THRESHOLD
+        ):
+
+            status = "MATCH"
+
+        elif (
+            similarity
+            >=
+            DESCRIPTION_MODERATE_THRESHOLD
+        ):
+
+            status = "PARTIAL_MATCH"
+
+        else:
+
+            status = "LOW_MATCH"
+
+        return {
+
+            "similarity":
+                round(
+                    similarity,
+                    4
+                ),
+
+            "status":
+                status,
+
+            "role":
+                "SUPPORTING_SIGNAL"
+        }
+
+    except Exception as e:
+
+        return {
+
+            "similarity": 0,
+
+            "status":
+                "ERROR",
+
+            "error":
+                str(e),
+
+            "role":
+                "SUPPORTING_SIGNAL"
+        }
+
+
+# ============================================================
+# SCENE RELEVANCE
+# ============================================================
+
+def check_scene_relevance(
+    image_path,
+    description
+):
+
+    description_lower = (
+        description or ""
+    ).lower()
+
+    if any(
+
+        word in description_lower
+
+        for word in [
+
+            "road",
+            "street",
+            "pothole",
+            "asphalt",
+            "resurface",
+            "roadway",
+            "highway",
+            "pavement"
+        ]
+    ):
+
+        scene_type = (
+            "ROAD_WORK"
+        )
+
+        positive_prompt = (
+            "a road construction or "
+            "road repair scene"
+        )
+
+        negative_prompt = (
+            "an indoor building or "
+            "unrelated place"
+        )
+
+    elif any(
+
+        word in description_lower
+
+        for word in [
+
+            "drain",
+            "drainage",
+            "sewer",
+            "culvert"
+        ]
+    ):
+
+        scene_type = (
+            "DRAINAGE_WORK"
+        )
+
+        positive_prompt = (
+            "a drainage construction or "
+            "drainage repair scene"
+        )
+
+        negative_prompt = (
+            "an indoor building or "
+            "unrelated place"
+        )
+
+    elif any(
+
+        word in description_lower
+
+        for word in [
+
+            "streetlight",
+            "street light",
+            "lamp post",
+            "electric pole",
+            "lighting"
+        ]
+    ):
+
+        scene_type = (
+            "STREETLIGHT_WORK"
+        )
+
+        positive_prompt = (
+            "a streetlight, lamp post or "
+            "electric lighting work scene"
+        )
+
+        negative_prompt = (
+            "an indoor building or "
+            "unrelated place"
+        )
+
+    elif any(
+
+        word in description_lower
+
+        for word in [
+
+            "building",
+            "wall",
+            "construction",
+            "renovation",
+            "painting",
+            "hall"
+        ]
+    ):
+
+        scene_type = (
+            "BUILDING_WORK"
+        )
+
+        positive_prompt = (
+            "a building construction, "
+            "renovation, painting or "
+            "hall work scene"
+        )
+
+        negative_prompt = (
+            "a road or unrelated outdoor "
+            "infrastructure scene"
+        )
+
+    elif any(
+
+        word in description_lower
+
+        for word in [
+
+            "park",
+            "garden",
+            "playground",
+            "green space"
+        ]
+    ):
+
+        scene_type = (
+            "PARK_WORK"
+        )
+
+        positive_prompt = (
+            "a park, garden or playground "
+            "development scene"
+        )
+
+        negative_prompt = (
+            "an indoor building or unrelated "
+            "infrastructure scene"
+        )
+
+    else:
+
+        scene_type = (
+            "GENERAL_WORK"
+        )
+
+        positive_prompt = (
+            "a public infrastructure work "
+            "or construction scene"
+        )
+
+        negative_prompt = (
+            "an unrelated scene"
+        )
+
+    try:
+
+        image = Image.open(
+            image_path
+        ).convert("RGB")
+
+        image_embedding = (
+            clip_model.encode(
+
+                image,
+
+                convert_to_tensor=True,
+
+                normalize_embeddings=True
+            )
+        )
+
+        positive_embedding = (
+            clip_model.encode(
+
+                positive_prompt,
+
+                convert_to_tensor=True,
+
+                normalize_embeddings=True
+            )
+        )
+
+        negative_embedding = (
+            clip_model.encode(
+
+                negative_prompt,
+
+                convert_to_tensor=True,
+
+                normalize_embeddings=True
+            )
+        )
+
+        positive_similarity = float(
+
+            util.cos_sim(
+
+                image_embedding,
+
+                positive_embedding
+
+            ).item()
+        )
+
+        negative_similarity = float(
+
+            util.cos_sim(
+
+                image_embedding,
+
+                negative_embedding
+
+            ).item()
+        )
+
+        margin = (
+            positive_similarity
+            -
+            negative_similarity
+        )
+
+        if margin >= 0.05:
+
+            status = "RELEVANT"
+
+        elif margin >= 0:
+
+            status = "UNCERTAIN"
+
+        else:
+
+            status = "NOT_RELEVANT"
+
+        return {
+
+            "scene_type":
+                scene_type,
+
+            "positive_similarity":
+                round(
+                    positive_similarity,
+                    4
+                ),
+
+            "negative_similarity":
+                round(
+                    negative_similarity,
+                    4
+                ),
+
+            "margin":
+                round(
+                    margin,
+                    4
+                ),
+
+            "status":
+                status,
+
+            "role":
+                "SUPPORTING_SIGNAL"
+        }
+
+    except Exception as e:
+
+        return {
+
+            "scene_type":
+                scene_type,
+
+            "status":
+                "ERROR",
+
+            "error":
+                str(e),
+
+            "role":
+                "SUPPORTING_SIGNAL"
+        }
+
+
+# ============================================================
+# DESCRIPTION CONSISTENCY
+# ============================================================
+
+def determine_description_consistency(
+    description_verification,
+    scene_relevance
+):
+
+    description_status = (
+        description_verification.get(
+            "status"
+        )
+    )
+
+    relevance_status = (
+        scene_relevance.get(
+            "status"
+        )
+    )
+
+    if (
+
+        description_status == "MATCH"
+
+        and
+
+        relevance_status == "RELEVANT"
+    ):
+
+        return {
+
+            "status":
+                "CONSISTENT",
+
+            "severity":
+                "LOW",
+
+            "action":
+                "SUPPORTING_SIGNAL"
+        }
+
+    if (
+
+        description_status == "LOW_MATCH"
+
+        and
+
+        relevance_status == "NOT_RELEVANT"
+    ):
+
+        return {
+
+            "status":
+                "CONTRADICTORY",
+
+            "severity":
+                "MEDIUM",
+
+            "action":
+                "SUPPORTING_SIGNAL_ONLY"
+        }
 
     return {
 
-        "similarity":
-            round(
-                similarity,
-                4
-            ),
-
-        "difference":
-            round(
-                difference,
-                4
-            ),
-
         "status":
-            status
+            "UNCERTAIN",
 
+        "severity":
+            "LOW",
+
+        "action":
+            "SUPPORTING_SIGNAL_ONLY"
     }
 
 
 # ============================================================
-# WORK DESCRIPTION MATCHING
+# AUTHENTICITY
 # ============================================================
 
-def check_work_description(
-    description,
-    after_path
-):
-
-    image_embedding = image_model.encode(
-
-        Image.open(
-            after_path
-        ).convert("RGB"),
-
-        convert_to_tensor=True
-
-    )
-
-    text_embedding = image_model.encode(
-
-        description,
-
-        convert_to_tensor=True
-
-    )
-
-    similarity = util.cos_sim(
-
-        image_embedding,
-
-        text_embedding
-
-    ).item()
-
-    return round(
-        similarity,
-        4
-    )
-
-
-# ============================================================
-# AI-GENERATED IMAGE DETECTION
-# ============================================================
-
-def check_image_authenticity(
-    path
+def check_single_image_authenticity(
+    image_path
 ):
 
     if not AUTHENTICITY_MODEL_AVAILABLE:
@@ -1171,7 +2002,7 @@ def check_image_authenticity(
         return {
 
             "status":
-                "AUTHENTICITY_CHECK_UNAVAILABLE",
+                "UNCERTAIN",
 
             "real_probability":
                 None,
@@ -1180,51 +2011,124 @@ def check_image_authenticity(
                 None,
 
             "authenticity_score":
-                None
+                None,
 
+            "role":
+                "SUPPORTING_SIGNAL"
         }
 
     try:
 
         image = Image.open(
-            path
-        ).convert(
-            "RGB"
-        )
+            image_path
+        ).convert("RGB")
 
-        inputs = authenticity_processor(
+        inputs = (
+            authenticity_processor(
 
-            images=image,
+                images=image,
 
-            return_tensors="pt"
-
+                return_tensors="pt"
+            )
         )
 
         with torch.no_grad():
 
-            outputs = authenticity_model(
-                **inputs
+            outputs = (
+                authenticity_model(
+                    **inputs
+                )
             )
 
         probabilities = torch.softmax(
 
             outputs.logits,
 
-            dim=1
+            dim=-1
 
         )[0]
 
-        # Model:
-        # Class 0 = Fake
-        # Class 1 = Real
+        # ====================================================
+        # DYNAMIC MODEL LABEL MAPPING
+        # ====================================================
+        # Do not assume class 0 = fake and class 1 = real.
+        # Read the labels provided by the model configuration.
+
+        id2label = getattr(
+            authenticity_model.config,
+            "id2label",
+            {}
+        )
+
+        fake_index = None
+        real_index = None
+
+        for index, label in id2label.items():
+
+            label_text = str(
+                label
+            ).lower().strip()
+
+            if (
+                "fake" in label_text
+                or
+                "deepfake" in label_text
+                or
+                "ai" in label_text
+                or
+                "generated" in label_text
+            ):
+
+                fake_index = int(
+                    index
+                )
+
+            elif (
+                "real" in label_text
+                or
+                "authentic" in label_text
+                or
+                "human" in label_text
+            ):
+
+                real_index = int(
+                    index
+                )
+
+        # ====================================================
+        # SAFE FALLBACK
+        # ====================================================
+        # Keep the previous mapping only if the model does not
+        # expose usable real/fake labels.
+
+        if (
+            fake_index is None
+            or
+            real_index is None
+            or
+            fake_index >= len(probabilities)
+            or
+            real_index >= len(probabilities)
+        ):
+
+            fake_index = 0
+            real_index = 1
 
         fake_probability = float(
-            probabilities[0].item()
+            probabilities[
+                fake_index
+            ].item()
         )
 
         real_probability = float(
-            probabilities[1].item()
+            probabilities[
+                real_index
+            ].item()
         )
+
+        # ====================================================
+        # CLASSIFICATION
+        # ====================================================
 
         if fake_probability >= 0.70:
 
@@ -1240,7 +2144,9 @@ def check_image_authenticity(
 
         else:
 
-            status = "UNCERTAIN"
+            status = (
+                "UNCERTAIN"
+            )
 
         return {
 
@@ -1259,25 +2165,24 @@ def check_image_authenticity(
                     4
                 ),
 
+            # This is the model's estimated real probability,
+            # not proof that the image is authentic.
             "authenticity_score":
                 round(
                     real_probability * 100,
                     2
-                )
+                ),
 
+            "role":
+                "SUPPORTING_SIGNAL"
         }
 
     except Exception as e:
 
-        print(
-            "Authenticity error:",
-            e
-        )
-
         return {
 
             "status":
-                "AUTHENTICITY_CHECK_FAILED",
+                "UNCERTAIN",
 
             "real_probability":
                 None,
@@ -1289,800 +2194,944 @@ def check_image_authenticity(
                 None,
 
             "error":
-                str(e)
+                str(e),
 
+            "role":
+                "SUPPORTING_SIGNAL"
         }
+
+
+def check_image_authenticity(
+    before_path,
+    after_path
+):
+
+    before_result = (
+        check_single_image_authenticity(
+            before_path
+        )
+    )
+
+    after_result = (
+        check_single_image_authenticity(
+            after_path
+        )
+    )
+
+    return {
+
+        "before_image":
+            before_result,
+
+        "after_image":
+            after_result,
+
+        "role":
+            "SUPPORTING_SIGNAL"
+    }
+
+
+# ============================================================
+# SCORE FUNCTIONS
+# ============================================================
+
+def calculate_metadata_score(
+    metadata
+):
+
+    score = 0
+
+    if metadata.get(
+        "timestamp_check"
+    ):
+
+        score += 25
+
+    if metadata.get(
+        "timestamp_order_check"
+    ):
+
+        score += 25
+
+    if metadata.get(
+        "gps_check"
+    ):
+
+        score += 25
+
+    if metadata.get(
+        "gps_location_check"
+    ):
+
+        score += 25
+
+    return score
+
+
+def calculate_description_score(
+    description_verification
+):
+
+    similarity = (
+        description_verification.get(
+            "similarity"
+        )
+    )
+
+    if similarity is None:
+
+        return 0
+
+    return round(
+        similarity * 100,
+        2
+    )
+
+
+def calculate_visual_change_score(
+    visual_result
+):
+
+    difference = (
+        visual_result.get(
+            "difference"
+        )
+    )
+
+    if difference is None:
+
+        return 0
+
+    return round(
+
+        min(
+            1.0,
+            max(
+                0.0,
+                difference
+            )
+        )
+        *
+        100,
+
+        2
+    )
+
+
+def calculate_evidence_score(
+    metadata_score,
+    visual_change_score,
+    description_score,
+    same_scene
+):
+
+    same_scene_status = (
+        same_scene.get(
+            "status"
+        )
+    )
+
+    if same_scene_status == (
+        "SAME_SCENE"
+    ):
+
+        scene_score = 100
+
+    elif same_scene_status == (
+        "UNCERTAIN"
+    ):
+
+        scene_score = 50
+
+    else:
+
+        scene_score = 0
+
+    score = (
+
+        metadata_score * 0.35
+
+        +
+
+        visual_change_score * 0.30
+
+        +
+
+        scene_score * 0.25
+
+        +
+
+        description_score * 0.10
+    )
+
+    return round(
+        score,
+        2
+    )
+
+
+# ============================================================
+# ROOT
+# ============================================================
+
+@app.get("/")
+def root():
+
+    return {
+
+        "service":
+            "Proof-of-Work AI Verification Service",
+
+        "version":
+            "5.1.0",
+
+        "status":
+            "running",
+
+        "cv2_available":
+            CV2_AVAILABLE,
+
+        "authenticity_model_available":
+            AUTHENTICITY_MODEL_AVAILABLE
+    }
+
+
+# ============================================================
+# HEALTH
+# ============================================================
+
+@app.get("/health")
+def health():
+
+    return {
+
+        "status":
+            "healthy",
+
+        "cv2_available":
+            CV2_AVAILABLE,
+
+        "authenticity_model_available":
+            AUTHENTICITY_MODEL_AVAILABLE
+    }
 
 
 # ============================================================
 # UPLOAD EVIDENCE
 # ============================================================
 
-@app.post(
-    "/upload-evidence"
-)
+@app.post("/upload-evidence")
 async def upload_evidence(
-
     work_id: int = Form(...),
-
-    before_image: UploadFile = File(...),
-
-    after_image: UploadFile = File(...)
-
+    evidence_type: str = Form(...),
+    file: UploadFile = File(...)
 ):
 
-    folder = os.path.join(
-
+    work_dir = os.path.join(
         UPLOAD_DIR,
-
         str(work_id)
-
     )
 
     os.makedirs(
-        folder,
+        work_dir,
         exist_ok=True
     )
 
-    before_name = os.path.basename(
-
-        before_image.filename
-        or
-        "before.jpg"
-
+    safe_filename = os.path.basename(
+        file.filename
     )
 
-    after_name = os.path.basename(
-
-        after_image.filename
-        or
-        "after.jpg"
-
+    filename = (
+        f"{evidence_type}_"
+        f"{safe_filename}"
     )
 
-    before_path = os.path.join(
-
-        folder,
-
-        "before_" + before_name
-
-    )
-
-    after_path = os.path.join(
-
-        folder,
-
-        "after_" + after_name
-
+    file_path = os.path.join(
+        work_dir,
+        filename
     )
 
     with open(
-        before_path,
+        file_path,
         "wb"
-    ) as f:
+    ) as buffer:
 
         shutil.copyfileobj(
-
-            before_image.file,
-
-            f
-
-        )
-
-    with open(
-        after_path,
-        "wb"
-    ) as f:
-
-        shutil.copyfileobj(
-
-            after_image.file,
-
-            f
-
+            file.file,
+            buffer
         )
 
     return {
 
-        "message":
-            "Evidence uploaded successfully",
+        "status":
+            "uploaded",
 
         "work_id":
             work_id,
 
-        "before_image":
-            before_path,
+        "evidence_type":
+            evidence_type,
 
-        "after_image":
-            after_path
+        "filename":
+            filename,
 
+        "path":
+            file_path
     }
 
 
 # ============================================================
-# VERIFY METADATA API
+# VERIFY METADATA
 # ============================================================
 
-@app.get(
-    "/verify-metadata/{work_id}"
-)
+@app.get("/verify-metadata/{work_id}")
 def verify_metadata(
     work_id: int
 ):
 
-    before, after = find_evidence_files(
-        work_id
+    before_path, after_path = (
+        find_evidence_files(
+            work_id
+        )
     )
 
-    if not before or not after:
+    if (
+        not before_path
+        or
+        not after_path
+    ):
 
         return {
 
-            "error":
-                "Before and After image not found"
+            "status":
+                "ERROR",
 
+            "message":
+                "Before and after images are required."
         }
 
-    before_metadata = get_image_metadata(
-        before
+    return check_metadata(
+        before_path,
+        after_path
     )
-
-    after_metadata = get_image_metadata(
-        after
-    )
-
-    metadata_result = check_metadata(
-
-        before_metadata,
-
-        after_metadata
-
-    )
-
-    return {
-
-        "work_id":
-            work_id,
-
-        "before":
-            before_metadata,
-
-        "after":
-            after_metadata,
-
-        "metadata_verification":
-            metadata_result
-
-    }
 
 
 # ============================================================
 # VERIFY AI / VISUAL CHANGE
 # ============================================================
 
-@app.get(
-    "/verify-ai/{work_id}"
-)
+@app.get("/verify-ai/{work_id}")
 def verify_ai(
     work_id: int
 ):
 
-    before, after = find_evidence_files(
-        work_id
+    before_path, after_path = (
+        find_evidence_files(
+            work_id
+        )
     )
 
-    if not before or not after:
+    if (
+        not before_path
+        or
+        not after_path
+    ):
 
         return {
 
-            "error":
-                "Before and After image not found"
+            "status":
+                "ERROR",
 
+            "message":
+                "Before and after images are required."
         }
 
-    try:
-
-        result = compare_images(
-
-            before,
-
-            after
-
-        )
-
-        return {
-
-            "work_id":
-                work_id,
-
-            "ai_verification":
-                result
-
-        }
-
-    except Exception as e:
-
-        return {
-
-            "work_id":
-                work_id,
-
-            "ai_verification":
-                None,
-
-            "error":
-                str(e)
-
-        }
+    return compare_images(
+        before_path,
+        after_path
+    )
 
 
 # ============================================================
-# VERIFY AUTHENTICITY API
+# VERIFY AUTHENTICITY
 # ============================================================
 
-@app.get(
-    "/verify-authenticity/{work_id}"
-)
+@app.get("/verify-authenticity/{work_id}")
 def verify_authenticity(
     work_id: int
 ):
 
-    before, after = find_evidence_files(
-        work_id
+    before_path, after_path = (
+        find_evidence_files(
+            work_id
+        )
     )
 
-    if not before or not after:
+    if (
+        not before_path
+        or
+        not after_path
+    ):
 
         return {
 
-            "error":
-                "Before and After image not found"
+            "status":
+                "ERROR",
 
+            "message":
+                "Before and after images are required."
         }
 
-    before_auth = check_image_authenticity(
-        before
+    return check_image_authenticity(
+        before_path,
+        after_path
     )
-
-    after_auth = check_image_authenticity(
-        after
-    )
-
-    return {
-
-        "work_id":
-            work_id,
-
-        "authenticity_verification": {
-
-            "before_image":
-                before_auth,
-
-            "after_image":
-                after_auth
-
-        }
-
-    }
 
 
 # ============================================================
-# OLD FINAL VERIFICATION API
+# VERIFY WORK GET
 # ============================================================
 
-@app.get(
-    "/verify/{work_id}"
-)
-def final_verification(
+@app.get("/verify/{work_id}")
+def verify_work_get(
     work_id: int
 ):
 
-    metadata_response = verify_metadata(
-        work_id
+    return verify_work_logic(
+        work_id,
+        ""
     )
 
-    if "error" in metadata_response:
 
-        return metadata_response
+# ============================================================
+# VERIFY WORK LOGIC
+# ============================================================
 
-    ai_response = verify_ai(
-        work_id
+def verify_work_logic(
+    work_id,
+    work_description
+):
+
+    before_path, after_path = (
+        find_evidence_files(
+            work_id
+        )
     )
-
-    if "error" in ai_response:
-
-        return ai_response
-
-    metadata = metadata_response[
-        "metadata_verification"
-    ]
-
-    ai = ai_response[
-        "ai_verification"
-    ]
 
     if (
-
-        metadata["status"]
-        == "VERIFIED"
-
-        and
-
-        ai["status"]
-        == "SIGNIFICANT_CHANGE"
-
+        not before_path
+        or
+        not after_path
     ):
-
-        status = "VERIFIED"
-
-        reason = (
-            "Strong visual change with valid "
-            "timestamp and GPS metadata"
-        )
-
-    elif ai["status"] in [
-
-        "SIGNIFICANT_CHANGE",
-
-        "MODERATE_CHANGE"
-
-    ]:
-
-        status = "NEEDS_REVIEW"
-
-        reason = (
-            "Visual change detected but "
-            "metadata verification is incomplete"
-        )
-
-    else:
-
-        status = "REJECTED"
-
-        reason = (
-            "Insufficient evidence of meaningful "
-            "work completion"
-        )
-
-    return {
-
-        "work_id":
-            work_id,
-
-        "metadata_verification":
-            metadata,
-
-        "ai_verification":
-            ai,
-
-        "final_verification": {
-
-            "status":
-                status,
-
-            "reason":
-                reason
-
-        }
-
-    }
-
-
-# ============================================================
-# VISUAL CHANGE SCORE
-# ============================================================
-
-def visual_change_score(
-    difference
-):
-
-    if difference < 0.05:
-
-        score = (
-            difference / 0.05
-        ) * 20
-
-    elif difference < 0.10:
-
-        score = (
-
-            20
-
-            +
-
-            (
-                (difference - 0.05)
-                /
-                0.05
-            )
-            *
-            20
-
-        )
-
-    elif difference < 0.15:
-
-        score = (
-
-            40
-
-            +
-
-            (
-                (difference - 0.10)
-                /
-                0.05
-            )
-            *
-            20
-
-        )
-
-    elif difference < 0.18:
-
-        score = (
-
-            60
-
-            +
-
-            (
-                (difference - 0.15)
-                /
-                0.03
-            )
-            *
-            10
-
-        )
-
-    else:
-
-        score = 70
-
-    return round(
-
-        min(
-            max(
-                score,
-                0
-            ),
-            70
-        ),
-
-        2
-
-    )
-
-
-# ============================================================
-# COMPLETE WORK VERIFICATION
-# ============================================================
-
-@app.post(
-    "/verify-work"
-)
-async def verify_work(
-
-    work_id: int = Form(...),
-
-    work_description: str = Form(...)
-
-):
-
-    before, after = find_evidence_files(
-        work_id
-    )
-
-    if not before or not after:
 
         return {
 
-            "error":
-                "Before and After image not found"
+            "work_id":
+                work_id,
 
+            "status":
+                "ERROR",
+
+            "message":
+                "Before and after evidence images "
+                "are required."
         }
 
-    # --------------------------------------------------------
-    # VISUAL COMPARISON
-    # --------------------------------------------------------
+    # ========================================================
+    # 1. VISUAL COMPARISON
+    # ========================================================
 
-    ai_result = compare_images(
-
-        before,
-
-        after
-
+    visual_result = compare_images(
+        before_path,
+        after_path
     )
 
-    visual_score = visual_change_score(
-
-        ai_result[
-            "difference"
-        ]
-
-    )
-
-    # --------------------------------------------------------
-    # SAME SCENE
-    # --------------------------------------------------------
+    # ========================================================
+    # 2. SAME SCENE
+    # ========================================================
 
     same_scene_result = check_same_scene(
-        before,
-        after
+        before_path,
+        after_path
     )
 
-    # --------------------------------------------------------
-    # DESCRIPTION
-    # --------------------------------------------------------
+    # ========================================================
+    # 3. DESCRIPTION
+    # ========================================================
 
-    similarity = check_work_description(
-
-        work_description,
-
-        after
-
+    description_result = (
+        check_work_description(
+            before_path,
+            work_description
+        )
     )
 
-    if similarity >= 0.30:
+    # ========================================================
+    # 4. SCENE RELEVANCE
+    # ========================================================
 
-        description_status = "MATCH"
-
-    elif similarity >= 0.15:
-
-        description_status = "PARTIAL_MATCH"
-
-    else:
-
-        description_status = "LOW_MATCH"
-
-    description_score = round(
-
-        max(
-            0,
-            min(
-                100,
-                similarity * 100
-            )
-        ),
-
-        2
-
+    scene_relevance_result = (
+        check_scene_relevance(
+            before_path,
+            work_description
+        )
     )
 
-    # --------------------------------------------------------
-    # WORK SCENE RELEVANCE
-    # --------------------------------------------------------
-    scene_result = check_scene_relevance(
-        work_description,
-        after
+    # ========================================================
+    # 5. DESCRIPTION CONSISTENCY
+    # ========================================================
+
+    description_consistency = (
+        determine_description_consistency(
+
+            description_result,
+
+            scene_relevance_result
+        )
     )
 
-    # --------------------------------------------------------
-    # METADATA
-    # --------------------------------------------------------
+    # ========================================================
+    # 6. METADATA
+    # ========================================================
 
-    before_metadata = get_image_metadata(
-        before
+    metadata_result = check_metadata(
+        before_path,
+        after_path
     )
 
-    after_metadata = get_image_metadata(
-        after
+    # ========================================================
+    # 7. AUTHENTICITY
+    # ========================================================
+
+    authenticity_result = (
+        check_image_authenticity(
+
+            before_path,
+
+            after_path
+        )
     )
 
-    metadata = check_metadata(
-
-        before_metadata,
-
-        after_metadata
-
-    )
-
-    # --------------------------------------------------------
-    # AUTHENTICITY
-    # --------------------------------------------------------
-
-    before_auth = check_image_authenticity(
-        before
-    )
-
-    after_auth = check_image_authenticity(
-        after
-    )
-
-    # --------------------------------------------------------
-    # FORENSIC ANALYSIS
-    # --------------------------------------------------------
+    # ========================================================
+    # 8. FORENSICS
+    # ========================================================
 
     try:
-        forensic_result = compare_forensics(
-            before,
-            after
+
+        forensic_result = (
+            compare_forensics(
+
+                before_path,
+
+                after_path
+            )
         )
+
     except Exception as e:
+
         forensic_result = {
-            "status": "FORENSIC_CHECK_FAILED",
-            "error": str(e)
+
+            "status":
+                "ERROR",
+
+            "error":
+                str(e)
         }
 
-    # --------------------------------------------------------
-    # METADATA SCORE
-    # --------------------------------------------------------
+    # ========================================================
+    # 9. SCORES
+    # ========================================================
 
-    metadata_score = 0
+    metadata_score = (
+        calculate_metadata_score(
+            metadata_result
+        )
+    )
+
+    visual_change_score = (
+        calculate_visual_change_score(
+            visual_result
+        )
+    )
+
+    description_score = (
+        calculate_description_score(
+            description_result
+        )
+    )
+
+    evidence_score = (
+        calculate_evidence_score(
+
+            metadata_score,
+
+            visual_change_score,
+
+            description_score,
+
+            same_scene_result
+        )
+    )
+
+    # ========================================================
+    # 10. PRIMARY EVIDENCE
+    # ========================================================
+
+    primary_evidence_status = {
+
+        "gps":
+            metadata_result.get(
+                "gps_location_check"
+            ),
+
+        "timestamp":
+            metadata_result.get(
+                "timestamp_order_check"
+            ),
+
+        "same_scene":
+            same_scene_result.get(
+                "status"
+            ),
+
+        "visual_change":
+            visual_result.get(
+                "status"
+            )
+    }
+
+    # ========================================================
+    # 11. AUTHENTICITY REVIEW
+    # ========================================================
+
+    authenticity_review_required = False
+
+    before_auth = (
+        authenticity_result.get(
+            "before_image",
+            {}
+        )
+    )
+
+    after_auth = (
+        authenticity_result.get(
+            "after_image",
+            {}
+        )
+    )
 
     if (
 
-        metadata.get(
-            "timestamp_order_check"
+        before_auth.get(
+            "status"
         )
-        is True
+        ==
+        "LIKELY_AI_GENERATED"
 
+        or
+
+        after_auth.get(
+            "status"
+        )
+        ==
+        "LIKELY_AI_GENERATED"
     ):
 
-        metadata_score += 50
+        authenticity_review_required = True
+
+    # ========================================================
+    # 12. FORENSIC REVIEW
+    # ========================================================
+
+    forensic_review_required = False
+
+    try:
+
+        overall = (
+            forensic_result.get(
+                "overall",
+                {}
+            )
+        )
+
+        if (
+
+            overall.get(
+                "before_risk"
+            )
+            ==
+            "HIGH"
+
+            or
+
+            overall.get(
+                "after_risk"
+            )
+            ==
+            "HIGH"
+        ):
+
+            forensic_review_required = True
+
+    except Exception:
+
+        pass
+
+    # ========================================================
+    # 13. FINAL DECISION
+    # ========================================================
+
+    final_status = (
+        "NEEDS_REVIEW"
+    )
+
+    final_reason = ""
+
+    metadata_status = (
+        metadata_result.get(
+            "status"
+        )
+    )
+
+    same_scene_status = (
+        same_scene_result.get(
+            "status"
+        )
+    )
+
+    visual_status = (
+        visual_result.get(
+            "status"
+        )
+    )
+
+    description_consistency_status = (
+        description_consistency.get(
+            "status"
+        )
+    )
+
+    # ========================================================
+    # PRIORITY 1:
+    # DIFFERENT SCENE = REJECT
+    #
+    # IMPORTANT FIX:
+    # This check comes BEFORE metadata.
+    #
+    # Even if GPS/timestamp are missing,
+    # if the images cannot be established as
+    # the same physical scene, automatic
+    # verification must fail.
+    # ========================================================
 
     if (
-
-        metadata.get(
-            "gps_location_check"
-        )
-        is True
-
+        same_scene_status
+        ==
+        "DIFFERENT_SCENE"
     ):
 
-        metadata_score += 50
-
-    # --------------------------------------------------------
-    # FINAL SCORE
-    # --------------------------------------------------------
-
-    final_score = (
-
-        visual_score * 0.40
-
-        +
-
-        metadata_score * 0.40
-
-        +
-
-        description_score * 0.20
-
-    )
-
-    final_score = round(
-        final_score,
-        2
-    )
-
-    # --------------------------------------------------------
-    # FINAL DECISION
-    # --------------------------------------------------------
-
-    # Authenticity detection is informational only and does not
-    # automatically reject evidence. The pretrained model is
-    # experimental for this road-work verification domain.
-
-    metadata_status = metadata.get(
-        "status"
-    )
-
-    visual_status = ai_result.get(
-        "status"
-    )
-
-    scene_status = scene_result.get(
-        "status"
-    )
-
-    same_scene_status = same_scene_result.get(
-        "status"
-    )
-
-    if metadata_status == "INSUFFICIENT_METADATA":
-        final_status = "REJECTED"
-        reason = (
-            "Evidence does not contain sufficient "
-            "trusted GPS and timestamp metadata"
+        final_status = (
+            "REJECTED"
         )
 
-    elif scene_status == "NOT_RELEVANT":
-        final_status = "REJECTED"
-        reason = (
-            "After image does not visually match the "
-            "type of work described"
+        final_reason = (
+            "The before and after images do not "
+            "provide sufficient evidence that they "
+            "represent the same physical scene. "
+            "Local feature matching and RANSAC "
+            "geometric verification failed."
         )
 
-    elif scene_status == "UNCERTAIN":
-        final_status = "NEEDS_REVIEW"
-        reason = (
-            "Work scene could not be confidently matched "
-            "to the description"
-        )
-
-    elif same_scene_status == "DIFFERENT_SCENE":
-        final_status = "REJECTED"
-        reason = (
-            "Before and After images do not appear to show "
-            "the same physical scene"
-        )
-
-    elif same_scene_status == "UNCERTAIN":
-        final_status = "NEEDS_REVIEW"
-        reason = (
-            "Same-scene verification is inconclusive; "
-            "manual review is required"
-        )
+    # ========================================================
+    # PRIORITY 2:
+    # LOW VISUAL CHANGE = REJECT
+    #
+    # If the same scene is established but there
+    # is practically no change, the work cannot
+    # be automatically verified.
+    # ========================================================
 
     elif (
-        metadata_status == "VERIFIED"
-        and scene_status == "RELEVANT"
-        and same_scene_status == "SAME_SCENE"
-        and visual_status in [
+        visual_status
+        ==
+        "LOW_CHANGE"
+    ):
+
+        final_status = (
+            "REJECTED"
+        )
+
+        final_reason = (
+            "The before and after images do not "
+            "show sufficient visual change."
+        )
+
+    # ========================================================
+    # PRIORITY 3:
+    # UNCERTAIN SCENE = REVIEW
+    # ========================================================
+
+    elif (
+        same_scene_status
+        ==
+        "UNCERTAIN"
+    ):
+
+        final_status = (
+            "NEEDS_REVIEW"
+        )
+
+        final_reason = (
+            "The images may be semantically related, "
+            "but local geometric evidence is insufficient "
+            "to reliably confirm that they show the same "
+            "physical scene."
+        )
+
+    # ========================================================
+    # PRIORITY 4:
+    # MISSING / INSUFFICIENT METADATA = REVIEW
+    # ========================================================
+
+    elif (
+        metadata_status
+        ==
+        "INSUFFICIENT_METADATA"
+    ):
+
+        final_status = (
+            "NEEDS_REVIEW"
+        )
+
+        final_reason = (
+            "The images appear related, but required "
+            "GPS/timestamp metadata is insufficient "
+            "for automatic verification."
+        )
+
+    # ========================================================
+    # PRIORITY 5:
+    # PARTIAL METADATA = REVIEW
+    # ========================================================
+
+    elif (
+        metadata_status
+        ==
+        "PARTIAL_METADATA"
+    ):
+
+        final_status = (
+            "NEEDS_REVIEW"
+        )
+
+        final_reason = (
+            "Some metadata evidence is available, "
+            "but complete automatic verification "
+            "is not possible."
+        )
+
+    # ========================================================
+    # PRIORITY 6:
+    # STRONG EVIDENCE = VERIFIED
+    # ========================================================
+
+    elif (
+
+        metadata_status
+        ==
+        "VERIFIED"
+
+        and
+
+        same_scene_status
+        ==
+        "SAME_SCENE"
+
+        and
+
+        visual_status
+        in
+        [
             "SIGNIFICANT_CHANGE",
             "MODERATE_CHANGE"
         ]
     ):
-        final_status = "VERIFIED"
-        reason = (
-            "Trusted metadata, relevant work scene, and "
-            "meaningful visual change were detected"
-        )
 
-    elif (
-        metadata_status == "VERIFIED"
-        and scene_status == "RELEVANT"
-        and same_scene_status == "SAME_SCENE"
-        and visual_status == "LOW_CHANGE"
-    ):
-        final_status = "REJECTED"
-        reason = (
-            "Trusted metadata and relevant scene are available, "
-            "but insufficient visual change was detected"
-        )
-
-    elif metadata_status == "PARTIAL_METADATA":
-        if scene_status == "NOT_RELEVANT":
-            final_status = "REJECTED"
-            reason = (
-                "Evidence does not match the described work scene"
-            )
-        elif same_scene_status == "DIFFERENT_SCENE":
-            final_status = "REJECTED"
-            reason = (
-                "Before and After images do not appear to show "
-                "the same physical scene"
-            )
-        elif same_scene_status == "UNCERTAIN":
-            final_status = "NEEDS_REVIEW"
-            reason = (
-                "Same-scene verification is inconclusive and "
-                "metadata is incomplete"
-            )
-        elif (
-            visual_status == "SIGNIFICANT_CHANGE"
-            and similarity >= 0.15
+        if (
+            description_consistency_status
+            ==
+            "CONTRADICTORY"
         ):
-            final_status = "NEEDS_REVIEW"
-            reason = (
-                "Strong visual change detected, "
-                "but metadata verification is incomplete"
+
+            final_status = (
+                "NEEDS_REVIEW"
             )
+
+            final_reason = (
+                "Primary work evidence is strong, "
+                "but the work description conflicts "
+                "with the image evidence and requires "
+                "review."
+            )
+
+        elif (
+            authenticity_review_required
+        ):
+
+            final_status = (
+                "NEEDS_REVIEW"
+            )
+
+            final_reason = (
+                "Strong work evidence was detected, "
+                "but the authenticity model flagged "
+                "one or more images for additional review."
+            )
+
+        elif (
+            forensic_review_required
+        ):
+
+            final_status = (
+                "NEEDS_REVIEW"
+            )
+
+            final_reason = (
+                "Strong work evidence was detected, "
+                "but forensic analysis produced elevated "
+                "risk signals requiring review."
+            )
+
         else:
-            final_status = "REJECTED"
-            reason = (
-                "Evidence has incomplete metadata "
-                "and insufficient supporting evidence"
+
+            final_status = (
+                "VERIFIED"
             )
+
+            final_reason = (
+                "GPS, timestamp, same-scene geometric "
+                "evidence and before/after visual change "
+                "support the work verification."
+            )
+
+    # ========================================================
+    # FALLBACK
+    # ========================================================
 
     else:
-        final_status = "NEEDS_REVIEW"
-        reason = "Evidence requires manual review"
 
-    # --------------------------------------------------------
-    # RESPONSE
-    # --------------------------------------------------------
+        final_status = (
+            "NEEDS_REVIEW"
+        )
+
+        final_reason = (
+            "Evidence is inconclusive and requires "
+            "manual review."
+        )
+
+    # ========================================================
+    # FINAL RESPONSE
+    # ========================================================
 
     return {
 
@@ -2093,41 +3142,36 @@ async def verify_work(
             work_description,
 
         "metadata_verification":
-            metadata,
+            metadata_result,
 
         "ai_verification":
-            ai_result,
+            visual_result,
 
-        "description_verification": {
+        "same_scene_verification":
+            same_scene_result,
 
-            "similarity":
-                similarity,
+        "description_verification":
+            description_result,
 
-            "status":
-                description_status
+        "description_consistency":
+            description_consistency,
 
-        },
+        "scene_relevance_verification":
+            scene_relevance_result,
 
-        "scene_relevance_verification": scene_result,
+        "authenticity_verification":
+            authenticity_result,
 
-        "same_scene_verification": same_scene_result,
+        "forensic_verification":
+            forensic_result,
 
-        "authenticity_verification": {
-
-            "before_image":
-                before_auth,
-
-            "after_image":
-                after_auth
-
-        },
-
-        "forensic_verification": forensic_result,
+        "primary_evidence_status":
+            primary_evidence_status,
 
         "scores": {
 
             "visual_change_score":
-                visual_score,
+                visual_change_score,
 
             "metadata_score":
                 metadata_score,
@@ -2135,9 +3179,17 @@ async def verify_work(
             "description_score":
                 description_score,
 
-            "final_score":
-                final_score
+            "evidence_score":
+                evidence_score
+        },
 
+        "review_flags": {
+
+            "authenticity_review_required":
+                authenticity_review_required,
+
+            "forensic_review_required":
+                forensic_review_required
         },
 
         "final_verification": {
@@ -2146,188 +3198,137 @@ async def verify_work(
                 final_status,
 
             "reason":
-                reason
+                final_reason
+        },
 
+        "verification_policy": {
+
+            "primary_evidence": [
+
+                "GPS",
+
+                "Timestamp",
+
+                "Same Scene",
+
+                "Before/After Visual Change"
+            ],
+
+            "same_scene_method": [
+
+                "CLIP Semantic Similarity",
+
+                "ORB Local Features",
+
+                "Lowe Ratio Test",
+
+                "RANSAC Homography",
+
+                "Absolute Match Count",
+
+                "Absolute Inlier Count",
+
+                "RANSAC Inlier Ratio"
+            ],
+
+            "supporting_evidence": [
+
+                "Work Description",
+
+                "Scene Relevance",
+
+                "Image Authenticity",
+
+                "Forensic Analysis"
+            ],
+
+            "description_can_auto_reject":
+                False,
+
+            "evidence_score_is_probability":
+                False,
+
+            "same_scene_requires_absolute_matches":
+                True,
+
+            "same_scene_requires_absolute_inliers":
+                True
         }
-
     }
+
+
+# ============================================================
+# VERIFY WORK - POST
+# ============================================================
+
+@app.post("/verify-work")
+async def verify_work(
+    work_id: int = Form(...),
+    work_description: str = Form("")
+):
+
+    return verify_work_logic(
+        work_id,
+        work_description
+    )
 
 
 # ============================================================
 # CITIZEN FEEDBACK
 # ============================================================
 
-@app.post(
-    "/verify-citizen-feedback"
-)
+@app.post("/verify-citizen-feedback")
 async def verify_citizen_feedback(
-
     work_id: int = Form(...),
-
-    feedback_id: int = Form(...),
-
-    feedback_text: str = Form(""),
-
-    feedback_photo: UploadFile = File(...)
-
+    feedback: str = Form(...),
+    citizen_name: str = Form("")
 ):
 
-    folder = os.path.join(
-
+    work_dir = os.path.join(
         UPLOAD_DIR,
-
         str(work_id)
-
-    )
-
-    if not os.path.exists(
-        folder
-    ):
-
-        return {
-
-            "error":
-                "Work ID not found"
-
-        }
-
-    feedback_folder = os.path.join(
-
-        folder,
-
-        "citizen_feedback"
-
     )
 
     os.makedirs(
-
-        feedback_folder,
-
+        work_dir,
         exist_ok=True
-
     )
 
-    filename = os.path.basename(
-
-        feedback_photo.filename
-        or
-        "feedback.jpg"
-
-    )
-
-    path = os.path.join(
-
-        feedback_folder,
-
-        f"feedback_{feedback_id}_{filename}"
-
+    feedback_file = os.path.join(
+        work_dir,
+        "citizen_feedback.txt"
     )
 
     with open(
-        path,
-        "wb"
-    ) as f:
+        feedback_file,
+        "a",
+        encoding="utf-8"
+    ) as file:
 
-        shutil.copyfileobj(
+        file.write(
 
-            feedback_photo.file,
+            f"\nCitizen: {citizen_name}\n"
 
-            f
+            f"Feedback: {feedback}\n"
 
+            f"Time: "
+            f"{datetime.now().isoformat()}\n"
+
+            f"{'-' * 50}\n"
         )
 
-    metadata = get_image_metadata(
-        path
-    )
-
-    timestamp_available = (
-
-        metadata[
-            "timestamp"
-        ]
-        is not None
-
-    )
-
-    gps_available = (
-
-        metadata[
-            "gps"
-        ]
-        is not None
-
-    )
-
-    if (
-
-        timestamp_available
-        and
-        gps_available
-
-    ):
-
-        status = "VERIFIED"
-
-    elif (
-
-        timestamp_available
-        or
-        gps_available
-
-    ):
-
-        status = "PARTIAL_METADATA"
-
-    else:
-
-        status = "INSUFFICIENT_METADATA"
-
     return {
+
+        "status":
+            "feedback_saved",
 
         "work_id":
             work_id,
 
-        "feedback_id":
-            feedback_id,
+        "citizen_name":
+            citizen_name,
 
-        "feedback_text":
-            feedback_text,
-
-        "citizen_feedback_metadata": {
-
-            "timestamp":
-                metadata[
-                    "timestamp"
-                ],
-
-            "timestamp_source":
-                metadata[
-                    "timestamp_source"
-                ],
-
-            "gps":
-                metadata[
-                    "gps"
-                ],
-
-            "gps_source":
-                metadata[
-                    "gps_source"
-                ]
-
-        },
-
-        "feedback_verification": {
-
-            "timestamp_available":
-                timestamp_available,
-
-            "gps_available":
-                gps_available,
-
-            "status":
-                status
-
-        }
-
+        "feedback":
+            feedback
     }
+
