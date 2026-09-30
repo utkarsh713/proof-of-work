@@ -40,7 +40,7 @@
 
 </div>
 
-> Replace `YOUR_LIVE_WEBSITE_LINK` with your actual deployed website URL.
+> 
 
 ---
 
