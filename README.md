@@ -575,17 +575,7 @@ More Transparent Verification
 
 ---
 
-# 📌 Repository
 
-<div align="center">
-
-<a href="https://github.com/utkarsh713/proof-of-work">
-  <img src="https://img.shields.io/badge/GitHub-Proof%20of%20Work-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Repository">
-</a>
-
-</div>
-
----
 
 <div align="center">
 
