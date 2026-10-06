@@ -112,7 +112,7 @@ The project is divided into three major components:
         ┌──────┴──────┐
         ↓             ↓
 ┌──────────────┐ ┌──────────────────┐
-│ MySQL   │ │ AI Verification  │
+│ MySQL   │      │ AI Verification  │
 │   Database   │ │ Python + FastAPI │
 └──────────────┘ └────────┬─────────┘
                           ↓
