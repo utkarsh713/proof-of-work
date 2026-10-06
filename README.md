@@ -9,7 +9,7 @@
 <p>
   <img src="https://img.shields.io/badge/React.js-Frontend-61DAFB?style=for-the-badge&logo=react&logoColor=white" alt="React.js">
   <img src="https://img.shields.io/badge/Spring%20Boot-Backend-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" alt="Spring Boot">
-  <img src="https://img.shields.io/badge/PostgreSQL-Database-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/MySQL-Database-4169E1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL">
   <img src="https://img.shields.io/badge/Python-AI%20Service-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/FastAPI-AI%20API-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
 </p>
@@ -52,7 +52,7 @@ The main idea is simple:
 
 > Instead of only marking a public work as completed, the system collects evidence and uses multiple verification signals to determine whether the submitted work can be trusted.
 
-The platform combines a **React.js frontend**, **Spring Boot backend**, **PostgreSQL database**, and a separate **Python/FastAPI AI verification service**.
+The platform combines a **React.js frontend**, **Spring Boot backend**, **MySQL database**, and a separate **Python/FastAPI AI verification service**.
 
 ---
 
@@ -88,7 +88,7 @@ Final Status
 | 👥 Citizen Feedback | Add an additional layer of verification |
 | 📊 Verification Status | Display structured verification results |
 | 🔗 REST APIs | Connect frontend, backend and AI service |
-| 🗄️ PostgreSQL | Store users, works and verification information |
+| 🗄️ MySQL | Store users, works and verification information |
 
 ---
 
@@ -112,7 +112,7 @@ The project is divided into three major components:
         ┌──────┴──────┐
         ↓             ↓
 ┌──────────────┐ ┌──────────────────┐
-│ PostgreSQL   │ │ AI Verification  │
+│ MySQL   │ │ AI Verification  │
 │   Database   │ │ Python + FastAPI │
 └──────────────┘ └────────┬─────────┘
                           ↓
@@ -177,7 +177,7 @@ Built using **Java and Spring Boot**.
 - Java 17
 - Spring Boot
 - REST API
-- PostgreSQL
+- MySQL
 - Maven
 
 ## 📋 Responsibilities
@@ -200,7 +200,7 @@ React Frontend
       ↓
 Spring Boot REST API
       ↓
-PostgreSQL
+MySQL
       ↓
 AI Verification Service
       ↓
@@ -422,7 +422,7 @@ Contains the Python packages required by the AI service.
                      ┌────────────┴────────────┐
                      ↓                         ↓
               ┌──────────────┐        ┌─────────────────┐
-              │  PostgreSQL  │        │ AI Verification │
+              │  MySQL  │        │ AI Verification │
               │   Database   │        │ Python/FastAPI  │
               └──────────────┘        └────────┬────────┘
                                                ↓
@@ -460,7 +460,7 @@ npm run dev
 
 ## Backend
 
-Make sure **Java 17** and **PostgreSQL** are configured.
+Make sure **Java 17** and **MySQL** are configured.
 
 Then run the Spring Boot application using your preferred IDE or Maven.
 
@@ -542,7 +542,7 @@ proof-of-work/
 |---|---|
 | **Frontend** | React.js, Tailwind CSS, React Router, Framer Motion |
 | **Backend** | Java 17, Spring Boot, REST API, Maven |
-| **Database** | PostgreSQL |
+| **Database** | MySQL |
 | **AI Service** | Python, FastAPI, Uvicorn, Pillow |
 | **Verification** | AI/ML, Image Analysis, EXIF, GPS, Timestamp |
 | **Tools** | Git, GitHub, Postman, VS Code |
@@ -579,7 +579,7 @@ More Transparent Verification
 
 <div align="center">
 
-### 🚀 Built with React.js + Spring Boot + PostgreSQL + Python
+### 🚀 Built with React.js + Spring Boot + MySQL + Python
 
 **Proof of Work — Evidence-driven verification for public works.**
 
