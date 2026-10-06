@@ -422,7 +422,7 @@ Contains the Python packages required by the AI service.
                      ┌────────────┴────────────┐
                      ↓                         ↓
               ┌──────────────┐        ┌─────────────────┐
-              │  MySQL  │        │ AI Verification │
+              │   MySQL      │        │ AI Verification │
               │   Database   │        │ Python/FastAPI  │
               └──────────────┘        └────────┬────────┘
                                                ↓
