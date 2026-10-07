@@ -44,6 +44,72 @@
 
 ---
 
+
+---
+
+# 📌 Problem Statement
+
+Public works such as roads, drainage systems, streetlights and other infrastructure are often marked as completed based on submitted evidence and manual verification.
+
+The problem is that a single photograph or project status does not reliably prove:
+
+- whether the evidence was captured at the actual project location
+- whether the evidence is recent
+- whether the claimed work is visibly completed
+- whether the submitted evidence is duplicated or suspicious
+- whether citizens agree that the work was actually completed
+
+This creates difficulties for authorities in efficiently verifying projects and makes it difficult for citizens to independently assess public work claims.
+
+Proof of Work addresses this problem through multi-layer evidence verification.
+
+---
+
+# 🔎 Existing Solutions
+
+Existing approaches can include government project portals, manual field inspections, project completion reports, photographic evidence, GIS/mapping platforms, and citizen reporting systems.
+
+### Limitations
+
+These approaches can provide project information or individual evidence, but they may not combine multiple verification signals into a single verification workflow.
+
+For example:
+
+- A project portal may show that a project is marked completed but may not independently verify the submitted evidence.
+- A photograph can show the work but does not by itself prove its location or timing.
+- GPS services can verify location but cannot determine whether the actual work was completed.
+- Citizen reporting provides human feedback but is not sufficient as the only verification mechanism.
+
+### Identified Gap
+
+Our identified gap is the need for a unified verification workflow that combines:
+
+```text
+Evidence
+   +
+GPS
+   +
+Timestamp
+   +
+Image Analysis
+   +
+Citizen Feedback
+   ↓
+Structured Verification
+```
+
+---
+
+# 💡 Proposed Solution
+
+Proof of Work proposes an evidence-driven verification platform for public works.
+
+The system collects before/after images and combines them with GPS location, timestamps, image analysis, work description and citizen feedback. These signals are evaluated together instead of relying on a single photograph or a single verification source.
+
+The goal is not to completely replace human inspection. Instead, the system assists authorities by producing a structured verification result and helping identify projects that require further review.
+
+---
+
 # 📌 About The Project
 
 **Proof of Work** is a platform designed to verify public works using **before/after images, GPS location, timestamps, AI-based image verification, and citizen feedback**.
@@ -405,6 +471,62 @@ Contains the Python packages required by the AI service.
 
 ---
 
+
+---
+
+# 🔐 Security Considerations
+
+The platform should protect evidence, user information and verification records.
+
+Key considerations include:
+
+- Authentication and authorization for users and administrators
+- Validation of uploaded files and supported image formats
+- Secure handling of uploaded evidence
+- Protection of GPS and timestamp information
+- API authentication and access control
+- Rate limiting for citizen feedback and public endpoints
+- Prevention of unauthorized modification of verification records
+- Audit logs for important verification actions
+- Protection against duplicate or abusive submissions
+
+The system should treat GPS, timestamps, metadata and AI results as verification signals rather than absolute proof.
+
+---
+
+# 🧮 Algorithms & Methodologies
+
+The verification workflow can use the following methodologies:
+
+- GPS distance calculation between registered and evidence locations
+- Timestamp ordering and consistency checks
+- EXIF metadata extraction
+- Before/after image comparison
+- Image quality and similarity analysis
+- Evidence signal aggregation
+- Rule-based decision logic for verification status
+
+The decision engine can combine these signals to classify a case as **Verified, Flagged, or Pending Review**, depending on the available evidence and detected inconsistencies.
+
+---
+
+# 🏗️ Infrastructure Requirements
+
+A practical deployment can include:
+
+- Web browser for users
+- React.js frontend
+- Spring Boot backend server
+- MySQL database
+- Python/FastAPI AI verification service
+- File storage for evidence images
+- HTTPS-enabled API communication
+- Server or cloud infrastructure for deployment
+
+The AI verification service is kept separate so that image-processing workloads can be scaled independently from the main application backend.
+
+---
+
 # 🏛️ Overall Architecture
 
 ```text
@@ -490,6 +612,68 @@ uvicorn main:app --reload
 | **Anjali** | Frontend & UI |
 | **Sujal** | AI Verification & Image Analysis |
 | **Sarat** | Research, Testing & Documentation |
+
+---
+
+
+---
+
+# 📈 Expected Impact
+
+Proof of Work can benefit:
+
+- Government departments
+- Municipal authorities
+- Project administrators
+- Infrastructure organizations
+- Citizens
+
+The platform can help:
+
+- Reduce unnecessary manual verification
+- Prioritize suspicious projects for inspection
+- Create a structured evidence trail
+- Improve transparency of public works
+- Give citizens an additional verification channel
+- Support more consistent project verification
+
+If successfully implemented at scale, the system could help authorities process evidence more systematically and provide citizens with greater visibility into the verification status of public works.
+
+The system is intended to assist human verification, not completely replace field inspection.
+
+---
+
+# ⚙️ Feasibility
+
+The proposed system uses established and widely used technologies:
+
+- React.js for the web interface
+- Spring Boot and Java for backend services
+- MySQL for structured data storage
+- Python and FastAPI for the verification service
+- Image-processing and metadata techniques for evidence analysis
+
+The modular architecture allows the frontend, backend, database and AI verification service to be developed and scaled independently.
+
+The initial solution can be implemented as an MVP and gradually extended with stronger computer-vision models, improved security mechanisms and larger-scale deployment.
+
+---
+
+# ⚠️ Limitations
+
+Proof of Work does not claim that AI or any individual signal can guarantee that a public work is genuine.
+
+Potential limitations include:
+
+- GPS data can potentially be manipulated or spoofed
+- Images can potentially be edited or manipulated
+- EXIF metadata may be missing or modified
+- AI/image analysis may produce false positives or false negatives
+- Citizen feedback can be subject to abuse
+- Some verification cases may still require physical inspection
+- Different types of public works may require different verification rules
+
+Therefore, conflicting or suspicious evidence should be flagged for human review instead of being automatically treated as verified.
 
 ---
 
