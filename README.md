@@ -1,14 +1,19 @@
+<div align="center">
+
 # 🔍 Proof of Work
 
-### AI-Powered Public Work Verification Platform
+### 🏗️ AI-Powered Public Work Verification Platform
 
-> **Don't just mark public work as completed. Prove it.**
+**Verify public works with evidence, location, timestamps, AI analysis, and citizen feedback.**
 
-Proof of Work is an evidence-driven platform for verifying public works
-using **before/after evidence, GPS, timestamps, AI-assisted image
-analysis, and citizen feedback**.
+<p>
+  <img src="https://img.shields.io/badge/React.js-Frontend-61DAFB?style=for-the-badge&logo=react&logoColor=white" alt="React.js">
+  <img src="https://img.shields.io/badge/Spring%20Boot-Backend-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" alt="Spring Boot">
+  <img src="https://img.shields.io/badge/MySQL-Database-4169E1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL">
+  <img src="https://img.shields.io/badge/Python-AI%20Service-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/FastAPI-AI%20API-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
+</p>
 
-**Stack:** React.js • Spring Boot • MySQL • Python • FastAPI
 
 ------------------------------------------------------------------------
 
